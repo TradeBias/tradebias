@@ -1,0 +1,100 @@
+use eframe::egui;
+use egui_charts::{ChartBuilder, TradingChart, model::Timeframe, theme::Theme};
+use polars::prelude::*;
+use std::path::PathBuf;
+use crossbeam_channel::{Sender, Receiver};
+use tb_foundry::engine::{EliteStrategy, GenerationMetrics};
+
+pub struct ColumnMapping {
+    pub time: String,
+    pub open: String,
+    pub high: String,
+    pub low: String,
+    pub close: String,
+    pub volume: String,
+}
+
+impl Default for ColumnMapping {
+    fn default() -> Self {
+        Self {
+            time: "timestamp".into(),
+            open: "open".into(),
+            high: "high".into(),
+            low: "low".into(),
+            close: "close".into(),
+            volume: "volume".into(),
+        }
+    }
+}
+
+pub struct TradingApp {
+    pub selected_tab: usize,
+    pub right_panel_open: bool,
+    pub config: tb_core::SessionConfig,
+    pub main_chart: TradingChart,
+    pub loaded_data: Option<LazyFrame>,
+    
+    // Column Mapping State
+    pub show_mapping_modal: bool,
+    pub raw_df_cache: Option<(DataFrame, PathBuf)>,
+    pub available_columns: Vec<String>,
+    pub column_mapping: ColumnMapping,
+    
+    // Regime Highlighting State
+    pub is_dragging_regime: bool,
+    pub current_regime_start: Option<usize>,
+    pub selected_regimes: Vec<(usize, usize)>,
+    
+    // Channels
+    pub elite_tx: Option<Sender<EliteStrategy>>,
+    pub elite_rx: Option<Receiver<EliteStrategy>>,
+    pub foundry_rx: Option<Receiver<GenerationMetrics>>,
+    pub latest_metrics: Option<GenerationMetrics>,
+    
+    // WFO State (Live Feed from Phase 1)
+    pub wfo_rx: Option<Receiver<Result<(EliteStrategy, tb_simulator::metrics::TearSheet), String>>>,
+    pub wfo_results: Vec<(EliteStrategy, tb_simulator::metrics::TearSheet)>,
+    pub wfo_running: bool,
+    
+    // WFO State (Dedicated Simulator Tab)
+    pub simulator_wfo_rx: Option<Receiver<Result<tb_simulator::metrics::TearSheet, String>>>,
+    pub latest_simulator_tearsheet: Option<tb_simulator::metrics::TearSheet>,
+}
+
+impl Default for TradingApp {
+    fn default() -> Self {
+        Self {
+            selected_tab: 0,
+            right_panel_open: true,
+            config: tb_core::SessionConfig::default(),
+            main_chart: ChartBuilder::new()
+                .with_symbol("BTC-USD")
+                .with_timeframe(Timeframe::Hour1)
+                .with_theme(Theme::dark())
+                .build(),
+            loaded_data: None,
+            show_mapping_modal: false,
+            raw_df_cache: None,
+            available_columns: vec![],
+            column_mapping: ColumnMapping::default(),
+            is_dragging_regime: false,
+            current_regime_start: None,
+            selected_regimes: vec![],
+            elite_tx: None,
+            elite_rx: None,
+            foundry_rx: None,
+            latest_metrics: None,
+            wfo_rx: None,
+            wfo_results: vec![],
+            wfo_running: false,
+            simulator_wfo_rx: None,
+            latest_simulator_tearsheet: None,
+        }
+    }
+}
+
+impl TradingApp {
+    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+        Self::default()
+    }
+}

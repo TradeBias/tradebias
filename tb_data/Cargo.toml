@@ -1,0 +1,12 @@
+[package]
+name = "tb_data"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chrono = "0.4.45"
+polars = { version = "0.41.3", features = ["lazy", "parquet", "temporal"] }
+serde = { version = "1.0.228", features = ["derive"] }
+tb_core = { version = "0.1.0", path = "../tb_core" }
+thiserror = "2.0.18"
+tracing = "0.1.44"

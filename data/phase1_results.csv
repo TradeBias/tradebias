@@ -1,0 +1,39 @@
+AST Structure,Edge (Hit Rate),CPCV Variance (Risk),Exposure (%),Complexity
+"IF EMA(Close, 40) crosses above Close THEN Enter Long",2299.7143,592.1711,5.1,1
+"IF Close crosses below EMA(Close, 40) THEN Enter Long",2299.7143,592.1711,5.1,1
+"IF Close crosses below EMA(EMA(Close, 31), 40) THEN Enter Long",1887.4286,512.5102,3.8,2
+"IF SMA(EMA(Close, 41), 5) crosses above Close THEN Enter Long",1817.7143,606.6300,4.7,2
+"IF EMA(EMA(Close, 5), 42) crosses above Close THEN Enter Long",1776.7143,507.6088,4.5,2
+"IF EMA(SMA(Close, 8), 38) crosses above Close THEN Enter Long",1759.8571,538.2069,4.5,2
+"IF Close crosses below EMA(SMA(Close, 8), 38) THEN Enter Long",1759.8571,538.2069,4.5,2
+"IF Close crosses below SMA(EMA(Close, 44), 41) THEN Enter Long",1472.8571,647.0446,3.1,2
+"IF SMA(Close, 8) crosses below SMA(SMA(Close, 18), 30) THEN Enter Long",1419.5714,348.8075,1.6,3
+"IF SMA(Close, 8) crosses below SMA(Close, 40) THEN Enter Long",1111.1429,320.4164,1.7,2
+"IF Close crosses above SMA(SMA(Close, 51), 85) THEN Enter Long",1026.8571,216.0247,1.9,2
+"IF EMA(Close, 40) crosses above SMA(Close, 49) THEN Enter Long",937.5714,306.0501,1.2,2
+"IF SMA(Close, 15) crosses above SMA(Close, 49) THEN Enter Long",812.2857,301.1091,1.3,2
+"IF EMA(Close, 5) crosses below EMA(Close, 31) THEN Enter Long",774.0000,265.8320,2.8,2
+"IF Close crosses above SMA(Close, 114) THEN Enter Long",742.5714,225.0926,2.2,1
+"IF EMA(Close, 5) crosses below EMA(SMA(Close, 8), 31) THEN Enter Long",590.8571,265.8320,2.7,3
+"IF SMA(Close, 30) crosses above Close THEN Enter Long",492.4286,694.9820,4.8,1
+"IF Close crosses below SMA(Close, 30) THEN Enter Long",492.4286,694.9820,4.8,1
+"IF SMA(Close, 15) crosses below SMA(Close, 167) THEN Enter Short",465.1429,136.6260,0.5,2
+"IF Close crosses above SMA(SMA(Close, 192), 95) THEN Enter Short",462.8571,400.0000,1.1,2
+"IF EMA(Close, 37) crosses above EMA(Close, 5) THEN Enter Long",441.4286,273.2520,2.6,2
+"IF EMA(SMA(Close, 8), 40) crosses above EMA(Close, 5) THEN Enter Long",325.7143,344.4803,2.3,3
+"IF SMA(Close, 15) crosses above EMA(Close, 42) THEN Enter Long",320.7143,376.3863,1.3,2
+"IF SMA(SMA(Close, 58), 5) crosses above Close THEN Enter Long",313.8571,577.6389,3.3,2
+"IF EMA(Close, 44) crosses below SMA(Close, 40) THEN Enter Long",311.1429,244.9490,1.7,2
+"IF SMA(Close, 17) crosses below EMA(Close, 44) THEN Enter Long",303.8571,213.6976,1.3,2
+"IF Close crosses below SMA(SMA(Close, 40), 41) THEN Enter Long",248.7143,472.2288,2.9,2
+"IF SMA(Close, 8) crosses below SMA(EMA(Close, 5), 37) THEN Enter Long",219.5714,278.6874,1.6,3
+"IF SMA(Close, 15) crosses below EMA(EMA(Close, 40), 40) THEN Enter Short",205.0000,147.1960,1.0,3
+"IF SMA(Close, 8) crosses below EMA(EMA(Close, 5), 42) THEN Enter Long",202.7143,545.5884,1.7,3
+"IF SMA(Close, 51) crosses above SMA(SMA(Close, 59), 108) THEN Enter Long",190.4286,104.8809,0.4,3
+"IF SMA(EMA(Close, 41), 8) crosses above EMA(Close, 5) THEN Enter Long",125.7143,338.6247,2.3,3
+"IF SMA(SMA(Close, 14), 15) crosses above SMA(Close, 100) THEN Enter Long",123.0000,187.0829,0.6,3
+"IF SMA(Close, 48) crosses below EMA(SMA(Close, 8), 44) THEN Enter Long",94.2857,209.7618,1.7,3
+"IF Close crosses above SMA(EMA(Close, 17), 111) THEN Enter Long",67.8571,194.0790,2.1,2
+"IF Close crosses below SMA(SMA(Close, 192), 55) THEN Enter Short",62.8571,216.0247,1.1,2
+"IF SMA(Close, 15) crosses below SMA(SMA(Close, 50), 114) THEN Enter Short",48.2857,51.6398,0.5,3
+"IF EMA(Close, 40) crosses below EMA(EMA(Close, 5), 42) THEN Enter Long",26.8571,433.5897,1.9,3

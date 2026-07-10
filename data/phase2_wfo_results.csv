@@ -1,0 +1,26 @@
+AST Structure (Logic),Net PnL ($),Win Rate (%),Max Drawdown (%),Total Trades,Sharpe Ratio
+"IF SMA(Close, 30) crosses above Close THEN Enter Long",0.03,100.00,0.00,1,0.00
+"IF Close crosses below SMA(Close, 30) THEN Enter Long",0.03,100.00,0.00,1,0.00
+"IF Close crosses above SMA(Close, 114) THEN Enter Long",0.03,100.00,0.00,1,0.00
+"IF Close crosses below SMA(EMA(Close, 56), 30) THEN Enter Long",0.03,100.00,0.00,1,0.00
+"IF Close crosses below SMA(EMA(Close, 47), 33) THEN Enter Long",0.03,100.00,0.00,1,0.00
+"IF EMA(SMA(Close, 15), 54) crosses above Close THEN Enter Long",0.03,100.00,0.00,1,0.00
+"IF Close crosses below EMA(Close, 56) THEN Enter Long",0.03,100.00,0.00,1,0.00
+"IF Close crosses below EMA(Close, 40) THEN Enter Long",0.03,100.00,0.00,1,0.00
+"IF EMA(Close, 40) crosses above Close THEN Enter Long",0.03,100.00,0.00,1,0.00
+"IF EMA(Close, 55) crosses above Close THEN Enter Long",0.03,100.00,0.00,1,0.00
+"IF Close crosses below EMA(Close, 55) THEN Enter Long",0.03,100.00,0.00,1,0.00
+"IF EMA(Close, 40) crosses above Close THEN Enter Long",0.03,100.00,0.00,1,0.00
+"IF Close crosses below EMA(Close, 40) THEN Enter Long",0.03,100.00,0.00,1,0.00
+"IF Close crosses below EMA(Close, 44) THEN Enter Long",0.03,100.00,0.00,1,0.00
+"IF Close crosses below EMA(Close, 42) THEN Enter Long",0.03,100.00,0.00,1,0.00
+"IF Close crosses below EMA(Close, 40) THEN Enter Long",0.03,100.00,0.00,1,0.00
+"IF EMA(Close, 40) crosses above Close THEN Enter Long",0.03,100.00,0.00,1,0.00
+"IF SMA(Close, 25) crosses above EMA(Close, 50) THEN Enter Long",0.02,100.00,0.00,1,0.00
+"IF SMA(Close, 15) crosses above SMA(Close, 50) THEN Enter Long",0.02,100.00,0.00,1,0.00
+"IF SMA(Close, 15) crosses above SMA(Close, 50) THEN Enter Long",0.02,100.00,0.00,1,0.00
+"IF Close crosses below EMA(Close, 171) THEN Enter Short",-0.02,33.33,0.00,3,-8.63
+"IF Close crosses below EMA(Close, 174) THEN Enter Short",-0.02,33.33,0.00,3,-9.06
+"IF SMA(Close, 6) crosses below SMA(Close, 200) THEN Enter Short",-0.02,33.33,0.00,3,-9.80
+"IF SMA(Close, 15) crosses below SMA(Close, 167) THEN Enter Short",-0.02,33.33,0.00,3,-9.92
+"IF Close crosses below SMA(Close, 11) THEN Enter Short",-0.03,25.00,0.00,4,-8.86
