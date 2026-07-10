@@ -5,13 +5,14 @@ pub fn parse_dataframe_to_bars(df: &DataFrame) -> Result<egui_charts::model::Bar
     let high_s = df.column("high").map_err(|_| "Missing high")?.cast(&DataType::Float64).map_err(|e| e.to_string())?;
     let low_s = df.column("low").map_err(|_| "Missing low")?.cast(&DataType::Float64).map_err(|e| e.to_string())?;
     let close_s = df.column("close").map_err(|_| "Missing close")?.cast(&DataType::Float64).map_err(|e| e.to_string())?;
-    let vol_s = df.column("volume").map_err(|_| "Missing volume")?.cast(&DataType::Float64).map_err(|e| e.to_string())?;
+
+    let volume_series = df.column("volume").ok().and_then(|c| c.cast(&DataType::Float64).ok());
 
     let open = open_s.f64().unwrap();
     let high = high_s.f64().unwrap();
     let low = low_s.f64().unwrap();
     let close = close_s.f64().unwrap();
-    let volume = vol_s.f64().unwrap();
+    let volume = volume_series.as_ref().and_then(|s| s.f64().ok());
 
     let time_col = df.column("timestamp").map_err(|_| "Missing timestamp")?;
     
@@ -49,7 +50,7 @@ pub fn parse_dataframe_to_bars(df: &DataFrame) -> Result<egui_charts::model::Bar
             high: high.get(i).unwrap_or(0.0),
             low: low.get(i).unwrap_or(0.0),
             close: close.get(i).unwrap_or(0.0),
-            volume: volume.get(i).unwrap_or(0.0),
+            volume: volume.and_then(|v| v.get(i)).unwrap_or(0.0),
         });
     }
     
