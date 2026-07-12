@@ -1,26 +1,17 @@
 AST Structure (Logic),Net PnL ($),Win Rate (%),Max Drawdown (%),Total Trades,Sharpe Ratio
-"IF SMA(Close, 30) crosses above Close THEN Enter Long",0.03,100.00,0.00,1,0.00
-"IF Close crosses below SMA(Close, 30) THEN Enter Long",0.03,100.00,0.00,1,0.00
-"IF Close crosses above SMA(Close, 114) THEN Enter Long",0.03,100.00,0.00,1,0.00
-"IF Close crosses below SMA(EMA(Close, 56), 30) THEN Enter Long",0.03,100.00,0.00,1,0.00
-"IF Close crosses below SMA(EMA(Close, 47), 33) THEN Enter Long",0.03,100.00,0.00,1,0.00
-"IF EMA(SMA(Close, 15), 54) crosses above Close THEN Enter Long",0.03,100.00,0.00,1,0.00
-"IF Close crosses below EMA(Close, 56) THEN Enter Long",0.03,100.00,0.00,1,0.00
-"IF Close crosses below EMA(Close, 40) THEN Enter Long",0.03,100.00,0.00,1,0.00
-"IF EMA(Close, 40) crosses above Close THEN Enter Long",0.03,100.00,0.00,1,0.00
-"IF EMA(Close, 55) crosses above Close THEN Enter Long",0.03,100.00,0.00,1,0.00
-"IF Close crosses below EMA(Close, 55) THEN Enter Long",0.03,100.00,0.00,1,0.00
-"IF EMA(Close, 40) crosses above Close THEN Enter Long",0.03,100.00,0.00,1,0.00
-"IF Close crosses below EMA(Close, 40) THEN Enter Long",0.03,100.00,0.00,1,0.00
-"IF Close crosses below EMA(Close, 44) THEN Enter Long",0.03,100.00,0.00,1,0.00
-"IF Close crosses below EMA(Close, 42) THEN Enter Long",0.03,100.00,0.00,1,0.00
-"IF Close crosses below EMA(Close, 40) THEN Enter Long",0.03,100.00,0.00,1,0.00
-"IF EMA(Close, 40) crosses above Close THEN Enter Long",0.03,100.00,0.00,1,0.00
-"IF SMA(Close, 25) crosses above EMA(Close, 50) THEN Enter Long",0.02,100.00,0.00,1,0.00
-"IF SMA(Close, 15) crosses above SMA(Close, 50) THEN Enter Long",0.02,100.00,0.00,1,0.00
-"IF SMA(Close, 15) crosses above SMA(Close, 50) THEN Enter Long",0.02,100.00,0.00,1,0.00
-"IF Close crosses below EMA(Close, 171) THEN Enter Short",-0.02,33.33,0.00,3,-8.63
-"IF Close crosses below EMA(Close, 174) THEN Enter Short",-0.02,33.33,0.00,3,-9.06
-"IF SMA(Close, 6) crosses below SMA(Close, 200) THEN Enter Short",-0.02,33.33,0.00,3,-9.80
-"IF SMA(Close, 15) crosses below SMA(Close, 167) THEN Enter Short",-0.02,33.33,0.00,3,-9.92
-"IF Close crosses below SMA(Close, 11) THEN Enter Short",-0.03,25.00,0.00,4,-8.86
+"IF RSI(EMA(Close, 5), 5) < 37.5 THEN Enter Long",5415.82,51.40,3.89,3401,0.26
+"IF RSI(EMA(Close, 5), 5) < 37.4 THEN Enter Long",5036.56,51.27,3.99,3394,0.24
+"IF RSI(Close, 5) < 30 THEN Enter Long",4727.19,51.20,1.89,2172,0.33
+"IF RSI(Close, 7) < 30 THEN Enter Long",4206.71,51.43,2.17,1569,0.39
+"IF RSI(SMA(Close, 6), 5) < 34.1 THEN Enter Long",4151.67,50.94,4.02,3235,0.21
+"IF RSI(SMA(Close, 9), 10) < 37.3 THEN Enter Long",4132.78,50.74,4.77,3092,0.22
+"IF RSI(SMA(Close, 9), 9) < 36.9 THEN Enter Long",3862.89,50.86,4.71,3144,0.21
+"IF RSI(SMA(Close, 9), 5) < 31.9 THEN Enter Long",3672.72,50.51,4.02,3223,0.19
+"IF RSI(SMA(Close, 9), 5) < 31.3 THEN Enter Long",3527.04,50.96,3.91,3185,0.18
+"IF RSI(SMA(Close, 9), 8) < 36.3 THEN Enter Long",3334.57,51.50,4.48,3171,0.18
+"IF RSI(SMA(Close, 5), 5) < 31.4 THEN Enter Long",3286.94,50.79,3.61,3050,0.18
+"IF RSI(SMA(Close, 5), 5) < 31.3 THEN Enter Long",3240.34,50.79,3.60,3048,0.18
+"IF RSI(SMA(Close, 9), 10) < 38.2 THEN Enter Long",2343.77,50.63,4.66,3156,0.13
+"IF RSI(EMA(Close, 5), 5) < 31.3 THEN Enter Long",2284.13,50.99,4.25,3036,0.13
+"IF SMA(Close, 5) crosses below SMA(Close, 200) THEN Enter Short",-139.43,50.20,1.58,251,-0.08
+"IF SMA(SMA(Close, 52), 15) crosses above Close THEN Enter Long",-3812.93,52.01,6.25,819,-0.69

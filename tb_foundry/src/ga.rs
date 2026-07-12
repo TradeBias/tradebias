@@ -35,7 +35,7 @@ impl MutationEngine {
                             "EMA" => *expr = Expr::Ema { source: source.clone(), period: *period },
                             "RSI" => *expr = Expr::Rsi { source: source.clone(), period: *period },
                             "ATR" => *expr = Expr::Atr { period: *period },
-                            "MACD" => *expr = Expr::Macd { source: source.clone(), fast: 12, slow: 26, signal: 9 },
+                            "MACD" => *expr = Expr::MacdLine { source: source.clone(), fast: 12, slow: 26 },
                             _ => {}
                         }
                         return;
@@ -48,19 +48,20 @@ impl MutationEngine {
                         *period = (*period as i32 + shift).clamp(5, 200) as u32; 
                     }
                 }
-                Expr::Macd { fast, slow, signal, .. } => {
-                    if rng.gen_bool(0.5) {
-                        let f_shift: i32 = rng.gen_range(-2..=2);
-                        *fast = (*fast as i32 + f_shift).clamp(3, 50) as u32;
-                    }
-                    if rng.gen_bool(0.5) {
-                        let s_shift: i32 = rng.gen_range(-3..=3);
-                        *slow = (*slow as i32 + s_shift).clamp(*fast as i32 + 1, 200) as u32;
-                    }
-                    if rng.gen_bool(0.3) {
-                        let sig_shift: i32 = rng.gen_range(-2..=2);
-                        *signal = (*signal as i32 + sig_shift).clamp(3, 30) as u32;
-                    }
+                Expr::MacdLine { fast, slow, .. } => {
+                    let shift: i32 = rng.gen_range(-2..=2);
+                    *fast = (*fast as i32 + shift).clamp(3, 50) as u32;
+                    *slow = (*slow as i32 + shift).clamp(*fast as i32 + 1, 200) as u32;
+                }
+                Expr::MacdSignal { fast, slow, signal, .. } | Expr::MacdHistogram { fast, slow, signal, .. } => {
+                    let shift: i32 = rng.gen_range(-2..=2);
+                    *fast = (*fast as i32 + shift).clamp(3, 50) as u32;
+                    *slow = (*slow as i32 + shift).clamp(*fast as i32 + 1, 200) as u32;
+                    *signal = (*signal as i32 + shift).clamp(3, 30) as u32;
+                }
+                Expr::BollingerUpper { period, .. } | Expr::BollingerLower { period, .. } => {
+                    let shift: i32 = rng.gen_range(-2..=2);
+                    *period = (*period as i32 + shift).clamp(5, 100) as u32;
                 }
                 Expr::Atr { period } => {
                     let shift: i32 = rng.gen_range(-2..=2);
@@ -116,7 +117,7 @@ impl MutationEngine {
         
         // Recursively attempt to mutate children
         match expr {
-            Expr::Sma { source, .. } | Expr::Ema { source, .. } | Expr::Rsi { source, .. } | Expr::Macd { source, .. } => {
+            Expr::Sma { source, .. } | Expr::Ema { source, .. } | Expr::Rsi { source, .. } | Expr::MacdLine { source, .. } | Expr::MacdSignal { source, .. } | Expr::MacdHistogram { source, .. } | Expr::BollingerUpper { source, .. } | Expr::BollingerLower { source, .. } => {
                 self.mutate_expr(source);
             }
             Expr::Add { lhs, rhs } | Expr::Sub { lhs, rhs } | 
@@ -146,7 +147,7 @@ fn get_nodes_of_type(expr: &Expr, target_type: ExprType) -> Vec<Expr> {
             nodes.push(e.clone());
         }
         match e {
-            Expr::Sma { source, .. } | Expr::Ema { source, .. } | Expr::Rsi { source, .. } | Expr::Macd { source, .. } => walk(source, target_type, nodes),
+            Expr::Sma { source, .. } | Expr::Ema { source, .. } | Expr::Rsi { source, .. } | Expr::MacdLine { source, .. } | Expr::MacdSignal { source, .. } | Expr::MacdHistogram { source, .. } | Expr::BollingerUpper { source, .. } | Expr::BollingerLower { source, .. } => walk(source, target_type, nodes),
             Expr::Add { lhs, rhs } | Expr::Sub { lhs, rhs } |
             Expr::CrossAbove { lhs, rhs } | Expr::CrossBelow { lhs, rhs } |
             Expr::GreaterThan { lhs, rhs } | Expr::LessThan { lhs, rhs } |
@@ -164,7 +165,7 @@ fn get_nodes_of_type(expr: &Expr, target_type: ExprType) -> Vec<Expr> {
 /// Helper to count nodes in an AST tree
 fn count_nodes(e: &Expr) -> usize {
     match e {
-        Expr::Sma { source, .. } | Expr::Ema { source, .. } | Expr::Rsi { source, .. } | Expr::Macd { source, .. } => 1 + count_nodes(source),
+        Expr::Sma { source, .. } | Expr::Ema { source, .. } | Expr::Rsi { source, .. } | Expr::MacdLine { source, .. } | Expr::MacdSignal { source, .. } | Expr::MacdHistogram { source, .. } | Expr::BollingerUpper { source, .. } | Expr::BollingerLower { source, .. } => 1 + count_nodes(source),
         Expr::Add { lhs, rhs } | Expr::Sub { lhs, rhs } |
         Expr::CrossAbove { lhs, rhs } | Expr::CrossBelow { lhs, rhs } |
         Expr::GreaterThan { lhs, rhs } | Expr::LessThan { lhs, rhs } |
@@ -178,7 +179,7 @@ fn extract_node_at(e: &Expr, current: &mut usize, target: usize) -> Option<Expr>
     if *current == target { return Some(e.clone()); }
     *current += 1;
     match e {
-        Expr::Sma { source, .. } | Expr::Ema { source, .. } | Expr::Rsi { source, .. } | Expr::Macd { source, .. } => extract_node_at(source, current, target),
+        Expr::Sma { source, .. } | Expr::Ema { source, .. } | Expr::Rsi { source, .. } | Expr::MacdLine { source, .. } | Expr::MacdSignal { source, .. } | Expr::MacdHistogram { source, .. } | Expr::BollingerUpper { source, .. } | Expr::BollingerLower { source, .. } => extract_node_at(source, current, target),
         Expr::Add { lhs, rhs } | Expr::Sub { lhs, rhs } |
         Expr::CrossAbove { lhs, rhs } | Expr::CrossBelow { lhs, rhs } |
         Expr::GreaterThan { lhs, rhs } | Expr::LessThan { lhs, rhs } |
@@ -198,7 +199,7 @@ fn replace_at(e: &mut Expr, donor: Expr, current: &mut usize, target: usize) -> 
     }
     *current += 1;
     match e {
-        Expr::Sma { source, .. } | Expr::Ema { source, .. } | Expr::Rsi { source, .. } | Expr::Macd { source, .. } => {
+        Expr::Sma { source, .. } | Expr::Ema { source, .. } | Expr::Wma { source, .. } | Expr::Hma { source, .. } | Expr::Dema { source, .. } | Expr::Tema { source, .. } | Expr::Kama { source, .. } | Expr::Smma { source, .. } | Expr::Alma { source, .. } | Expr::Rsi { source, .. } | Expr::MacdLine { source, .. } | Expr::MacdSignal { source, .. } | Expr::MacdHistogram { source, .. } | Expr::BollingerUpper { source, .. } | Expr::BollingerLower { source, .. } => {
             replace_at(source, donor, current, target)
         }
         Expr::Add { lhs, rhs } | Expr::Sub { lhs, rhs } |
@@ -216,10 +217,10 @@ fn replace_at(e: &mut Expr, donor: Expr, current: &mut usize, target: usize) -> 
 fn max_indicator_depth(e: &Expr) -> usize {
     match e {
         Expr::Close | Expr::Open | Expr::High | Expr::Low | Expr::Volume | Expr::Constant { .. } => 0,
-        Expr::Sma { source, .. } | Expr::Ema { source, .. } | Expr::Rsi { source, .. } | Expr::Macd { source, .. } => {
+        Expr::Sma { source, .. } | Expr::Ema { source, .. } | Expr::Wma { source, .. } | Expr::Hma { source, .. } | Expr::Dema { source, .. } | Expr::Tema { source, .. } | Expr::Kama { source, .. } | Expr::Smma { source, .. } | Expr::Alma { source, .. } | Expr::Rsi { source, .. } | Expr::MacdLine { source, .. } | Expr::MacdSignal { source, .. } | Expr::MacdHistogram { source, .. } | Expr::BollingerUpper { source, .. } | Expr::BollingerLower { source, .. } => {
             1 + max_indicator_depth(source)
         }
-        Expr::Atr { .. } => 1,
+        Expr::Atr { .. } | Expr::KeltnerUpper { .. } | Expr::KeltnerLower { .. } | Expr::DonchianUpper { .. } | Expr::DonchianLower { .. } | Expr::DonchianMid { .. } | Expr::Supertrend { .. } | Expr::SupertrendDir { .. } | Expr::Psar { .. } | Expr::Adx { .. } | Expr::DiPlus { .. } | Expr::DiMinus { .. } | Expr::StochasticK { .. } | Expr::StochasticD { .. } | Expr::StochRsiK { .. } | Expr::StochRsiD { .. } | Expr::WilliamsR { .. } | Expr::Cci { .. } | Expr::Mfi { .. } | Expr::Roc { .. } | Expr::AwesomeOscillator { .. } | Expr::Tsi { .. } | Expr::UltimateOscillator { .. } | Expr::Dpo { .. } | Expr::Kst { .. } | Expr::KstSignal { .. } | Expr::FisherTransform { .. } | Expr::FisherTrigger { .. } | Expr::ConnorsRsi { .. } | Expr::Cmo { .. } | Expr::Rvi { .. } | Expr::RviSignal { .. } | Expr::Smi { .. } | Expr::Trix { .. } | Expr::Eom { .. } | Expr::VortexPlus { .. } | Expr::VortexMinus { .. } | Expr::DssBressert { .. } | Expr::Ppo { .. } | Expr::PpoSignal { .. } | Expr::PpoHist { .. } | Expr::ChoppinessIndex { .. } | Expr::QqeFast { .. } | Expr::QqeSlow { .. } | Expr::Stc { .. } | Expr::ChaikinVolatility { .. } | Expr::HistoricalVolatility { .. } | Expr::UlcerIndex { .. } | Expr::StandardDeviation { .. } | Expr::BollingerBandWidth { .. } | Expr::BollingerPercentB { .. } | Expr::KeltnerChannelWidth { .. } | Expr::VixSynthetic { .. } | Expr::Obv | Expr::Vwap | Expr::AdLine | Expr::ChaikinMoneyFlow { .. } | Expr::ChaikinOscillator { .. } | Expr::Pvt | Expr::Nvi | Expr::Pvi | Expr::ForceIndex { .. } | Expr::Vfi { .. } | Expr::VolumeOscillator { .. } | Expr::KlingerOscillator { .. } | Expr::Mvwap { .. } | Expr::Twap { .. } | Expr::LinRegSlope { .. } | Expr::LinRegIntercept { .. } | Expr::LinRegRSquared { .. } | Expr::LinRegCurve { .. } | Expr::StdErrorBandUpper { .. } | Expr::StdErrorBandLower { .. } | Expr::ZScore { .. } | Expr::LogReturn | Expr::MedianPrice | Expr::TypicalPrice | Expr::WeightedClose | Expr::HurstExponent { .. } | Expr::PivotPointsP { .. } | Expr::PivotPointsR1 { .. } | Expr::PivotPointsS1 { .. } | Expr::FibLevel236 { .. } | Expr::FibLevel382 { .. } | Expr::FibLevel500 { .. } | Expr::FibLevel618 { .. } | Expr::FibLevel786 { .. } | Expr::HeikinAshiClose | Expr::EhlersSuperSmoother { .. } | Expr::EhlersDecycler { .. } | Expr::EhlersCyberCycle { .. } | Expr::EhlersMama { .. } | Expr::EhlersFama { .. } | Expr::EhlersSine | Expr::EhlersLeadSine | Expr::EhlersDecyclerOscillator { .. } | Expr::EhlersRoofingFilter { .. } | Expr::EhlersDominantCyclePeriod | Expr::EhlersAutocorrelationPeriodogram | Expr::EhlersEmd { .. } | Expr::MarketMeannessIndex { .. } | Expr::ZeroLagMacdLine { .. } | Expr::ZeroLagMacdSignal { .. } | Expr::ZeroLagMacdHist { .. } | Expr::GatorTop | Expr::GatorBottom | Expr::KalmanFilter { .. } | Expr::BullishEngulfing | Expr::BearishEngulfing | Expr::Doji | Expr::Hammer | Expr::ShootingStar | Expr::MorningStar | Expr::EveningStar => 1,
         Expr::Add { lhs, rhs } | Expr::Sub { lhs, rhs } => {
             max_indicator_depth(lhs).max(max_indicator_depth(rhs))
         }

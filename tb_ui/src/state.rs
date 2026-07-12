@@ -3,7 +3,17 @@ use egui_charts::{ChartBuilder, TradingChart, model::Timeframe, theme::Theme};
 use polars::prelude::*;
 use std::path::PathBuf;
 use crossbeam_channel::{Sender, Receiver};
-use tb_foundry::engine::{EliteStrategy, GenerationMetrics};
+use tb_core::ast::EliteStrategy;
+
+#[derive(Clone, Debug)]
+pub struct GenerationMetrics {
+    pub generation: usize,
+    pub elapsed_seconds: f64,
+    pub total_generated: usize,
+    pub total_discarded: usize,
+    pub strategies: Vec<EliteStrategy>,
+    pub status_msg: Option<String>,
+}
 
 pub struct ColumnMapping {
     pub time: String,
@@ -36,6 +46,7 @@ pub struct TradingApp {
     
     // Column Mapping State
     pub show_mapping_modal: bool,
+    pub show_indicator_modal: bool,
     pub raw_df_cache: Option<(DataFrame, PathBuf)>,
     pub available_columns: Vec<String>,
     pub column_mapping: ColumnMapping,
@@ -74,6 +85,7 @@ impl Default for TradingApp {
                 .build(),
             loaded_data: None,
             show_mapping_modal: false,
+            show_indicator_modal: false,
             raw_df_cache: None,
             available_columns: vec![],
             column_mapping: ColumnMapping::default(),

@@ -8,7 +8,7 @@ crossbeam-channel = "0.5.16"
 serde = { version = "1.0.228", features = ["derive"] }
 tb_core = { version = "0.1.0", path = "../tb_core" }
 tb_data = { version = "0.1.0", path = "../tb_data" }
-tb_foundry = { version = "0.1.0", path = "../tb_foundry" }
 thiserror = "2.0.18"
 tracing = "0.1.44"
 polars = { version = "0.41.3", features = ["lazy"] }
+tb_math = { version = "0.1.0", path = "../tb_math" }

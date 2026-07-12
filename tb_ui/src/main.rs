@@ -5,6 +5,7 @@ mod data_parser;
 mod components;
 mod tabs;
 mod app;
+mod export;
 
 use app::TradingApp;
 use polars::prelude::*;

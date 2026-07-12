@@ -90,11 +90,11 @@ fn generate_macd_cross(id: usize, rng: &mut rand::rngs::ThreadRng, direction: Tr
     
     let entry = match direction {
         TradeDirection::Long => Expr::CrossAbove {
-            lhs: Box::new(Expr::Macd { source: Box::new(Expr::Close), fast, slow, signal: 9 }),
+            lhs: Box::new(Expr::MacdLine { source: Box::new(Expr::Close), fast, slow }),
             rhs: Box::new(Expr::Constant { value: 0.0 }),
         },
         TradeDirection::Short => Expr::CrossBelow {
-            lhs: Box::new(Expr::Macd { source: Box::new(Expr::Close), fast, slow, signal: 9 }),
+            lhs: Box::new(Expr::MacdLine { source: Box::new(Expr::Close), fast, slow }),
             rhs: Box::new(Expr::Constant { value: 0.0 }),
         }
     };

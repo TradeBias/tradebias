@@ -1,0 +1,14 @@
+[package]
+name = "tb_bitwise"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+tracing = "0.1"
+csv = "1.3"
+anyhow = "1.0"
+rand = "0.8"
+rayon = "1.8"
+tb_core = { path = "../tb_core" }
+tb_math = { version = "0.1.0", path = "../tb_math" }

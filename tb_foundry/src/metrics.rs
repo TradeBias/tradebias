@@ -53,9 +53,11 @@ pub fn prepare_data_for_evaluation(mut data: LazyFrame) -> LazyFrame {
     let future_close = col("close").shift(lit(-n_bars));
     let fwd_return = (future_close - col("close")) / col("close");
     
-    let target = when(fwd_return.gt(lit(0.0)))
+    let target = when(fwd_return.clone().gt(lit(0.0)))
         .then(lit(1.0))
-        .otherwise(lit(-1.0))
+        .when(fwd_return.lt(lit(0.0)))
+        .then(lit(-1.0))
+        .otherwise(lit(0.0))
         .alias("forward_return"); // keep same column name for engine.rs compat
 
     data.with_column(target)

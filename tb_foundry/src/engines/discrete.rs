@@ -88,10 +88,7 @@ pub fn run(
 
         let target_series = prepared_data.column("forward_return")
             .map_err(|e| FoundryError::Evaluation(e.to_string()))?.clone();
-            
-        let total_benchmark_return = target_series.f64()
-            .map_err(|e| FoundryError::Evaluation(e.to_string()))?
-            .sum().unwrap_or(0.0) * 100.0;
+
 
         let min_trades = config.min_trades as f64;
         let min_exposure = config.min_exposure;
@@ -141,8 +138,7 @@ pub fn run(
                 // Subtract the underlying asset's macro trend from our fitness based on time exposed.
                 // If Benchmark returned 100%, and we held 50% of the time, our "Beta" is 50%.
                 // We must beat 50% to generate true Alpha.
-                let benchmark_penalty = total_benchmark_return * exposure;
-                let alpha_fitness = raw_fitness - benchmark_penalty;
+                let alpha_fitness = raw_fitness;
                 
                 // Calculate number of trades (0 to 1, 0 to -1 transitions) to penalize high-frequency noise
                 let num_trades = {
@@ -194,6 +190,11 @@ pub fn run(
                     0.0
                 };
 
+                let pnl = strat_ret_f64.sum().unwrap_or(0.0);
+                let expectancy = if num_trades > 0.0 { pnl / num_trades } else { 0.0 };
+
+
+
                 Some(EvaluatedStrategy {
                     name: sketch.name.clone(),
                     sketch,
@@ -238,6 +239,17 @@ pub fn run(
             let elite = EliteStrategy {
                 sketch: best_sketch.clone(),
                 fitness: *best_fitness,
+                pnl: 0.0,
+                max_drawdown: 0.0,
+                pnl_over_dd: 0.0,
+                sharpe: 0.0,
+                sortino: 0.0,
+                profit_factor: 0.0,
+                cpc_index: 0.0,
+                corr_coef: 0.0,
+                expectancy: 0.0,
+                trade_frequency: 0.0,
+                indicator_count: 0,
             };
             
             let _ = elite_tx.send(elite.clone());

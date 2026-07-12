@@ -21,6 +21,13 @@ pub struct Phase1Config {
     pub risk_appetite: RiskAppetite,
     pub complexity_cap: ComplexityCap,
     pub permitted_indicators: Vec<String>, // E.g. "SMA", "EMA", "RSI", "MACD"
+    pub stop_type: crate::stops::StopType,
+    pub take_profit: crate::stops::TakeProfit,
+    pub trade_direction: crate::ast::TradeDirection,
+    pub map_x: crate::archive::ArchiveTrait,
+    pub map_y: crate::archive::ArchiveTrait,
+    pub fitness: crate::fitness::FitnessFunction,
+    pub grid_size: usize,
     // Hard Constraints
     pub min_trades: usize,
     pub min_exposure: f64,
@@ -28,6 +35,7 @@ pub struct Phase1Config {
     pub slippage_penalty: f64,
     pub in_sample_pct: f64,
     pub long_strategy_pct: f64,
+    pub starting_equity: f64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -99,12 +107,20 @@ impl Default for SessionConfig {
                 risk_appetite: RiskAppetite::Conservative,
                 complexity_cap: ComplexityCap::HumanReadable,
                 permitted_indicators: vec!["SMA".into(), "EMA".into(), "RSI".into(), "MACD".into()],
+                stop_type: crate::stops::StopType::FixedBarHold { bars: 5 },
+                take_profit: crate::stops::TakeProfit::RiskReward { multiplier: 2.0 },
+                trade_direction: crate::ast::TradeDirection::Long,
+                map_x: crate::archive::ArchiveTrait::MarketExposure,
+                map_y: crate::archive::ArchiveTrait::WinRate,
+                fitness: crate::fitness::FitnessFunction::PnlOverDd,
+                grid_size: 25,
                 min_trades: 10,
                 min_exposure: 0.001,
-                max_exposure: 0.40,
-                slippage_penalty: 5.0,
-                in_sample_pct: 0.70,
-                long_strategy_pct: 0.50,
+                max_exposure: 0.8,
+                slippage_penalty: 0.0,
+                in_sample_pct: 0.7,
+                long_strategy_pct: 0.5,
+                starting_equity: 100_000.0,
             },
             phase2: Phase2Config {
                 exit_strategy: ExitStrategy::TrailingStop,

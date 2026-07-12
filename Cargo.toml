@@ -1,9 +1,9 @@
 [workspace]
 resolver = "2"
-members = [
+members = ["tb_bench", "tb_bitwise",
     "tb_core",
     "tb_data",
-    "tb_foundry",
+    "tb_foundry", "tb_math",
     "tb_simulator",
     "tb_ui",
 ]

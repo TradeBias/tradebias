@@ -109,8 +109,22 @@ pub fn run(
                 let strat_ret = (&signal_f64 * &target_series).ok()?;
                 let strat_ret_f64 = strat_ret.f64().ok()?;
                 
-                // Fitness (Sum of returns)
-                let fitness = strat_ret_f64.sum().unwrap_or(0.0) * 100.0;
+                let raw_fitness = strat_ret_f64.sum().unwrap_or(0.0) * 100.0;
+                
+                let num_trades = {
+                    let mut count = 0;
+                    let mut prev = 0.0;
+                    for val in signal_f64.f64().unwrap().into_no_null_iter() {
+                        if (val - prev).abs() > 0.1 { count += 1; }
+                        prev = val;
+                    }
+                    (count as f64) / 2.0
+                };
+                
+                let complexity_penalty = (indicator_count as f64) * 200.0;
+                let slippage_penalty = num_trades * config.slippage_penalty;
+                
+                let fitness = raw_fitness - complexity_penalty - slippage_penalty;
                 
                 // Risk (CPCV Regime Robustness / Variance Across Folds)
                 let total_len = strat_ret_f64.len();
@@ -190,6 +204,17 @@ pub fn run(
             let elite = EliteStrategy {
                 sketch: best_sketch.clone(),
                 fitness: *best_fitness,
+                pnl: 0.0,
+                max_drawdown: 0.0,
+                pnl_over_dd: 0.0,
+                sharpe: 0.0,
+                sortino: 0.0,
+                profit_factor: 0.0,
+                cpc_index: 0.0,
+                corr_coef: 0.0,
+                expectancy: 0.0,
+                trade_frequency: 0.0,
+                indicator_count: 0,
             };
             
             let _ = elite_tx.send(elite.clone());

@@ -25,12 +25,7 @@ pub struct GenerationMetrics {
     pub elapsed_seconds: f64,
 }
 
-/// Represents a strategy that passed Phase 1 and is ready for Phase 2
-#[derive(Debug, Clone)]
-pub struct EliteStrategy {
-    pub sketch: Sketch,
-    pub fitness: f64,
-}
+pub use tb_core::ast::EliteStrategy;
 
 pub struct AlphaFoundry {
     config: Phase1Config,

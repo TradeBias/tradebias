@@ -61,16 +61,9 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                     app.latest_simulator_tearsheet = None; // Reset previous results
 
                     std::thread::spawn(move || {
-                        let (_dummy_tx, dummy_rx) = crossbeam_channel::unbounded(); 
-                        let simulator = tb_simulator::ExecutionSimulator::new(phase2_config, dummy_rx, data_clone);
-                        match simulator.run_wfo(phase1_config, wfo_config, generations, population_size, None) {
-                            Ok(tear_sheet) => {
-                                let _ = tx.send(Ok(tear_sheet));
-                            }
-                            Err(e) => {
-                                let _ = tx.send(Err(e.to_string()));
-                            }
-                        }
+                        // WFO relies on the deprecated tb_foundry. 
+                        // To be rewritten with tb_bitwise.
+                        let _ = tx.send(Err("Walk-Forward Optimization is currently disabled pending Bitwise integration.".to_string()));
                     });
                 } else {
                     tracing::warn!("No data loaded! Please load data in the Sandbox first.");

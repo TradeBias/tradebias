@@ -4,15 +4,16 @@ use tracing::{info, warn};
 use crate::error::SimulatorError;
 
 use crate::metrics::TearSheet;
+use tb_core::ast::EliteStrategy;
 
 pub struct ExecutionSimulator {
     config: Phase2Config,
-    elite_rx: Receiver<tb_foundry::EliteStrategy>,
+    elite_rx: Receiver<EliteStrategy>,
     data: polars::prelude::LazyFrame,
 }
 
 impl ExecutionSimulator {
-    pub fn new(config: Phase2Config, elite_rx: Receiver<tb_foundry::EliteStrategy>, mut data: polars::prelude::LazyFrame) -> Self {
+    pub fn new(config: Phase2Config, elite_rx: Receiver<EliteStrategy>, mut data: polars::prelude::LazyFrame) -> Self {
         // Normalize column names to lowercase to prevent case issues
         if let Ok(schema) = data.schema() {
             let mut old_names = Vec::new();
@@ -31,56 +32,11 @@ impl ExecutionSimulator {
         Self { config, elite_rx, data }
     }
 
-
-
-    /// Runs the complete Walk-Forward Optimization across all slices
-    pub fn run_wfo(
-        &self, 
-        phase1_config: tb_core::Phase1Config,
-        wfo_config: crate::wfo::WfoConfig,
-        generations: usize,
-        population_size: usize,
-        ui_tx: Option<crossbeam_channel::Sender<tb_foundry::engine::GenerationMetrics>>,
-    ) -> Result<TearSheet, SimulatorError> {
-        
-        let df_len = self.data.clone().collect().unwrap().height();
-        let slicer = crate::wfo::WfoSlicer::new(wfo_config, df_len);
-        
-        let mut master_ledger = crate::portfolio::Ledger::new(100_000.0);
-        
-        for (window_idx, (is_start, is_len, oos_start, oos_len)) in slicer.enumerate() {
-            info!("--- WFO Window {} ---", window_idx + 1);
-            info!("IS:  [{} .. {}]", is_start, is_start + is_len);
-            info!("OOS: [{} .. {}]", oos_start, oos_start + oos_len);
-            
-            // 1. Slice In-Sample Data
-            let is_data = self.data.clone().slice(is_start as i64, is_len as u32);
-            
-            // 2. Spawn AlphaFoundry for this IS Window
-            let (elite_tx, _elite_rx) = crossbeam_channel::unbounded();
-            let foundry = tb_foundry::AlphaFoundry::new(phase1_config.clone(), elite_tx, ui_tx.clone());
-            
-            // Run GA synchronously for the IS window
-            let elite = foundry.run_generations(generations, population_size, is_data)
-                .map_err(|e| SimulatorError::Evaluation(format!("Phase 1 failed: {}", e)))?;
-                
-            info!("Window {} Elite found. Testing on OOS data...", window_idx + 1);
-            
-            // 3. Slice Out-of-Sample Data
-            let oos_data = self.data.clone().slice(oos_start as i64, oos_len as u32);
-            
-            // 4. Test Elite Strategy on OOS Data and merge into master_ledger
-            self.simulate_oos_slice(&elite.sketch, oos_data, &mut master_ledger)?;
-        }
-        
-        info!("Walk-Forward Optimization complete across all windows.");
-        let tear_sheet = TearSheet::generate(&master_ledger);
-        Ok(tear_sheet)
-    }
+    // Removed run_wfo as tb_foundry is deprecated
 
     /// Spawns a background thread that constantly listens for new EliteStrategies from Phase 1,
     /// runs a full backtest simulation on them, and streams the TearSheet back to the UI.
-    pub fn start_live_backtesting_listener(&self, ui_equity_tx: crossbeam_channel::Sender<Result<(tb_foundry::EliteStrategy, TearSheet), String>>) {
+    pub fn start_live_backtesting_listener(&self, ui_equity_tx: crossbeam_channel::Sender<Result<(EliteStrategy, TearSheet), String>>) {
         let data = self.data.clone();
         let rx = self.elite_rx.clone();
         let config = self.config.clone();
@@ -182,7 +138,14 @@ impl ExecutionSimulator {
                     }
                 }
                 
-                let alpha_exit = exit_signal;
+                let mut time_exit = false;
+                if sketch.exit.is_none() {
+                    if abs_index - pos.entry_index >= 5 {
+                        time_exit = true;
+                    }
+                }
+                
+                let alpha_exit = exit_signal || time_exit;
                 
                 if alpha_exit || risk_exit {
                     ledger.record_trade(pos, close, abs_index);
@@ -196,7 +159,13 @@ impl ExecutionSimulator {
                         tb_core::TradeDirection::Long => crate::portfolio::PositionSide::Long,
                         tb_core::TradeDirection::Short => crate::portfolio::PositionSide::Short,
                     };
-                    active_position = Some(crate::portfolio::Position::new(side, close, 1.0, abs_index));
+                    
+                    // Fixed 1% Risk Sizing
+                    let risk_amount = ledger.current_balance * 0.01;
+                    let risk_per_unit = close * stop_loss_pct;
+                    let size = if risk_per_unit > 0.0 { risk_amount / risk_per_unit } else { 1.0 };
+                    
+                    active_position = Some(crate::portfolio::Position::new(side, close, size, abs_index));
                     extreme_price = close;
                 }
             }
