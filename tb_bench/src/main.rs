@@ -92,8 +92,8 @@ fn main() {
     let engine = std::sync::Arc::new(BitwiseEngine::new(arc_grid.clone(), arc_targets));
 
     // Run the MAP-Elites Genetic Algorithm
-    let archive = tb_bitwise::archive::MapArchive::new(tb_core::archive::ArchiveTrait::MarketExposure, tb_core::archive::ArchiveTrait::WinRate, tb_core::fitness::FitnessFunction::PnlOverDd, 10, data.close.len() as u32, 5);
-    let mut ga = GeneticAlgorithm::new(engine, 5_000, 100, TradeDirection::Long, archive);
+    let archive = tb_bitwise::archive::MapArchive::new(tb_core::archive::ArchiveTrait::MarketExposure, tb_core::archive::ArchiveTrait::WinRate, tb_core::fitness::FitnessFunction::PnlOverDd, 10, data.close.len() as u32, 5, 10, 0.02);
+    let mut ga = GeneticAlgorithm::new(engine, 5_000, 100, TradeDirection::Long, archive, 0.95);
     
     let start_eval = Instant::now();
     ga.run();
@@ -106,7 +106,7 @@ fn main() {
     info!("Found {} unique Elite Strategies out of {} possible grid buckets.", final_kings.len(), 12);
     
     for (i, king) in final_kings.iter().enumerate() {
-        info!("  King {}: Trades = {}, Win Rate = {:.2}%, Rules = {:?}", i, king.total_trades, king.win_rate, king.conditions);
+        info!("  King {}: Trades = {}, Win Rate = {:.2}%, Rules = {:?}", i, king.metrics.total_trades, king.metrics.win_rate, king.conditions);
         if let Some(sketch) = translate_to_sketch(king, &arc_grid, TradeDirection::Long) {
             let json = serde_json::to_string_pretty(&sketch).unwrap();
             println!("--- WINNING STRATEGY AST ---\n{}\n----------------------------", json);

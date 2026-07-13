@@ -13,8 +13,6 @@ pub enum FitnessFunction {
     WinPercentage,
     CpcIndex,
     CorrCoef,
-    Cagr,
-    TTest,
 }
 
 impl Default for FitnessFunction {
@@ -38,8 +36,6 @@ impl FitnessFunction {
             (Self::WinPercentage, "Win Percentage"),
             (Self::CpcIndex, "CPC Index"),
             (Self::CorrCoef, "Correlation Coef"),
-            (Self::Cagr, "CAGR"),
-            (Self::TTest, "T-Test (Statistical Sig)"),
         ]
     }
 }

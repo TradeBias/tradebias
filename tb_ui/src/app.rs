@@ -5,6 +5,7 @@ pub use crate::state::TradingApp;
 impl eframe::App for TradingApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         crate::components::modals::render_mapping_modal(self, ctx);
+        crate::components::modals::render_robustness_modal(self, ctx);
 
         // 1. Global Status Bar (Bottom)
         egui::TopBottomPanel::bottom("status_bar").exact_height(24.0).show(ctx, |ui| {

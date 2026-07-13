@@ -158,6 +158,7 @@ impl ExecutionSimulator {
                     let side = match sketch.direction {
                         tb_core::TradeDirection::Long => crate::portfolio::PositionSide::Long,
                         tb_core::TradeDirection::Short => crate::portfolio::PositionSide::Short,
+                        tb_core::TradeDirection::LongAndShort => crate::portfolio::PositionSide::Long, // TODO: Implement symmetric backtesting
                     };
                     
                     // Fixed 1% Risk Sizing

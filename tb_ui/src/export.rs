@@ -6,7 +6,7 @@ pub fn export_leaderboard_to_csv(
     config: &Phase1Config,
     metrics: &GenerationMetrics,
 ) -> Result<(), std::io::Error> {
-    let mut csv_content = String::from("AST Structure,Fitness Score,Total PnL,Expectancy,Exposure (%),Complexity,Direction,Stop Type,Take Profit,MAP-X,MAP-Y,Fitness Function,In-Sample Pct\n");
+    let mut csv_content = String::from("AST Structure,Fitness Score,Total PnL,Avg Trade,Avg Win,Avg Loss,Largest Win,Largest Loss,Std Win,Std Loss,Max DD,PnL/DD,Max Cons Loss,Sharpe,Sortino,Profit Factor,CPC Index,Corr Coef,Exposure (%),Complexity,Direction,Stop Type,Take Profit,MAP-X,MAP-Y,Fitness Function,In-Sample Pct\n");
     
     // Format config options once
     let direction_str = format!("{:?}", config.trade_direction);
@@ -20,12 +20,26 @@ pub fn export_leaderboard_to_csv(
     for strategy in &metrics.strategies {
         let ast = strategy.sketch.to_string().replace("\"", "\"\"");
         csv_content.push_str(&format!(
-            "\"{}\",{:.4},{:.2},{:.4},{:.1},{},{},{},{},{},{},{},{}\n",
+            "\"{}\",{:.4},{:.2},{:.4},{:.4},{:.4},{:.4},{:.4},{:.4},{:.4},{:.4},{:.4},{},{:.4},{:.4},{:.4},{:.4},{:.4},{:.1},{},{},{},{},{},{},{},{}\n",
             ast,
             strategy.fitness,
             strategy.pnl,
-            strategy.expectancy,
-            strategy.trade_frequency,
+            strategy.avg_trade,
+            strategy.avg_win,
+            strategy.avg_loss,
+            strategy.largest_win,
+            strategy.largest_loss,
+            strategy.std_win,
+            strategy.std_loss,
+            strategy.max_drawdown,
+            strategy.pnl_over_dd,
+            strategy.max_consecutive_losses,
+            strategy.sharpe,
+            strategy.sortino,
+            strategy.profit_factor,
+            strategy.cpc_index,
+            strategy.corr_coef,
+            strategy.exposure_pct,
             strategy.indicator_count,
             direction_str,
             stop_str,

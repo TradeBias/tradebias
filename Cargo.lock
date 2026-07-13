@@ -4586,7 +4586,6 @@ dependencies = [
  "serde_json",
  "tb_bitwise",
  "tb_core",
- "tb_foundry",
  "tb_math",
  "tb_simulator",
  "tracing",
@@ -4625,19 +4624,6 @@ dependencies = [
  "chrono",
  "polars",
  "serde",
- "tb_core",
- "thiserror 2.0.18",
- "tracing",
-]
-
-[[package]]
-name = "tb_foundry"
-version = "0.1.0"
-dependencies = [
- "crossbeam-channel",
- "polars",
- "rand 0.8.6",
- "rayon",
  "tb_core",
  "thiserror 2.0.18",
  "tracing",

@@ -36,6 +36,9 @@ pub struct Phase1Config {
     pub in_sample_pct: f64,
     pub long_strategy_pct: f64,
     pub starting_equity: f64,
+    // Robustness Defaults
+    pub occam_penalty_pct: f64,
+    pub random_benchmark_percentile: f64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -121,6 +124,8 @@ impl Default for SessionConfig {
                 in_sample_pct: 0.7,
                 long_strategy_pct: 0.5,
                 starting_equity: 100_000.0,
+                occam_penalty_pct: 0.02,
+                random_benchmark_percentile: 0.95,
             },
             phase2: Phase2Config {
                 exit_strategy: ExitStrategy::TrailingStop,

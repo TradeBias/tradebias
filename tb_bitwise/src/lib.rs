@@ -9,3 +9,4 @@ pub mod translator;
 pub mod fitness;
 // The core structures for the Bitwise Engine will live here.
 pub mod registry;
+pub mod robustness;

@@ -8,10 +8,12 @@ pub struct MapArchive {
     pub fitness_metric: tb_core::fitness::FitnessFunction,
     pub max_candles: u32,
     pub max_complexity: usize,
+    pub min_trades: usize,
+    pub occam_penalty_pct: f64,
 }
 
 impl MapArchive {
-    pub fn new(x_trait: tb_core::archive::ArchiveTrait, y_trait: tb_core::archive::ArchiveTrait, fitness_metric: tb_core::fitness::FitnessFunction, grid_size: usize, max_candles: u32, max_complexity: usize) -> Self {
+    pub fn new(x_trait: tb_core::archive::ArchiveTrait, y_trait: tb_core::archive::ArchiveTrait, fitness_metric: tb_core::fitness::FitnessFunction, grid_size: usize, max_candles: u32, max_complexity: usize, min_trades: usize, occam_penalty_pct: f64) -> Self {
         Self {
             grid: vec![vec![None; grid_size]; grid_size],
             grid_size,
@@ -20,6 +22,8 @@ impl MapArchive {
             fitness_metric,
             max_candles,
             max_complexity,
+            min_trades,
+            occam_penalty_pct,
         }
     }
 
@@ -48,13 +52,13 @@ impl MapArchive {
     }
 
     pub fn submit(&mut self, genome: Genome) -> bool {
-        if genome.metrics.total_trades == 0 { return false; }
+        if genome.metrics.total_trades < (self.min_trades as u32) { return false; }
         
         let x = self.get_bin(&self.x_trait, &genome);
         let y = self.get_bin(&self.y_trait, &genome);
 
         let is_better = match &self.grid[x][y] {
-            Some(king) => crate::fitness::is_better(&genome, king, &self.fitness_metric),
+            Some(king) => crate::fitness::is_better(&genome, king, &self.fitness_metric, self.occam_penalty_pct),
             None => true,
         };
 

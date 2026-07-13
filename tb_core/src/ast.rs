@@ -174,6 +174,7 @@ pub enum Expr {
 pub enum TradeDirection {
     Long,
     Short,
+    LongAndShort,
 }
 
 /// A Strategy Sketch is just an entry condition (an Expr that evaluates to a boolean)
@@ -197,9 +198,17 @@ pub struct EliteStrategy {
     pub profit_factor: f64,
     pub cpc_index: f64,
     pub corr_coef: f64,
-    pub expectancy: f64,
-    pub trade_frequency: f64,
+    pub avg_trade: f64,
+    pub avg_win: f64,
+    pub avg_loss: f64,
+    pub std_win: f64,
+    pub std_loss: f64,
+    pub largest_win: f64,
+    pub largest_loss: f64,
+    pub max_consecutive_losses: u32,
+    pub exposure_pct: f64,
     pub indicator_count: u8,
+    pub condition_indexes: Vec<usize>,
 }
 
 impl std::fmt::Display for Expr {

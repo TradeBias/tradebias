@@ -17,48 +17,68 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
         ctx.request_repaint();
     }
     
+    if let Some(rx) = &app.engine_rx {
+        if let Ok(engine) = rx.try_recv() {
+            app.bitwise_engine = Some(engine);
+            app.engine_rx = None; // We only expect one engine per run
+        }
+    }
+    
     // Phase 2 listener removed from Alpha Foundry tab
 
     egui::SidePanel::left("alpha_foundry_controls").default_width(300.0).show(ctx, |ui| {
         ui.heading("Alpha Generation Settings");
         ui.add_space(8.0);
+        ui.add_space(8.0);
         
-        ui.horizontal(|ui| {
-            ui.label("Starting Equity: $");
-            ui.add(egui::DragValue::new(&mut app.config.phase1.starting_equity)
-                .speed(1000.0)
-                .range(100.0..=100_000_000.0)
-            );
-        });
-        ui.add_space(16.0);
-        
-        egui::CollapsingHeader::new("1. Target / Exit Definitions")
-            .default_open(true)
+        egui::Grid::new("alpha_settings_grid")
+            .num_columns(2)
+            .spacing([40.0, 12.0])
             .show(ui, |ui| {
-                ui.label("Exit Logic (Pre-computed):");
+                // --- Starting Equity ---
+                ui.label("Starting Equity: $");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add(egui::DragValue::new(&mut app.config.phase1.starting_equity)
+                        .speed(1000.0)
+                        .range(100.0..=100_000_000.0)
+                    );
+                });
+                ui.end_row();
+
+                // --- Target / Exit Definitions ---
+                ui.label(egui::RichText::new("Target / Exit Definitions").strong().size(14.0));
+                ui.label(""); // empty cell
+                ui.end_row();
+
+                ui.label("Exit Logic:");
                 
                 let mut current_stop = app.config.phase1.stop_type.clone();
                 let available_types = tb_core::stops::StopType::available_types();
-                
-                // Identify the current type index based on variant name
                 let mut stop_idx = match current_stop {
                     tb_core::stops::StopType::FixedBarHold { .. } => 0,
                     tb_core::stops::StopType::StandardStop { .. } => 1,
                     tb_core::stops::StopType::TrailingStop { .. } => 2,
                 };
                 
-                egui::ComboBox::from_id_source("stop_type_dropdown")
-                    .selected_text(available_types[stop_idx].0)
-                    .show_ui(ui, |ui| {
-                        for (i, (name, _)) in available_types.iter().enumerate() {
-                            ui.selectable_value(&mut stop_idx, i, *name);
-                        }
-                    });
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    egui::ComboBox::from_id_source("stop_type_dropdown")
+                        .selected_text(available_types[stop_idx].0)
+                        .show_ui(ui, |ui| {
+                            for (i, (name, _)) in available_types.iter().enumerate() {
+                                ui.selectable_value(&mut stop_idx, i, *name);
+                            }
+                        });
+                });
+                ui.end_row();
                     
                 match stop_idx {
                     0 => {
+                        ui.label("Bars to Hold:");
                         let mut bars = if let tb_core::stops::StopType::FixedBarHold { bars } = current_stop { bars } else { 5 };
-                        ui.add(egui::Slider::new(&mut bars, 1..=20).text("Bars"));
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.add(egui::Slider::new(&mut bars, 1..=20).text("Bars"));
+                        });
+                        ui.end_row();
                         app.config.phase1.stop_type = tb_core::stops::StopType::FixedBarHold { bars };
                     }
                     1 | 2 => {
@@ -70,12 +90,9 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                         
                         let available_calcs = tb_core::stops::StopCalculation::available();
                         
-                        ui.horizontal(|ui| {
-                            ui.label("Calculation:");
-                            
-                            // Find current index
+                        ui.label("Calculation:");
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             let mut calc_idx = available_calcs.iter().position(|(c, _, _)| std::mem::discriminant(c) == std::mem::discriminant(&calc)).unwrap_or(0);
-                            
                             egui::ComboBox::from_id_source("calc_type_dropdown")
                                 .selected_text(available_calcs[calc_idx].1)
                                 .show_ui(ui, |ui| {
@@ -84,16 +101,16 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                                     }
                                 });
                                 
-                            // Ensure calc is set to the selected type
                             if std::mem::discriminant(&calc) != std::mem::discriminant(&available_calcs[calc_idx].0) {
                                 calc = available_calcs[calc_idx].0.clone();
                             }
                             
                             let spec = &available_calcs[calc_idx].2;
                             let mut val = calc.get_val();
-                            ui.add(egui::Slider::new(&mut val, spec.min..=spec.max).text(spec.label));
+                            ui.add(egui::Slider::new(&mut val, spec.min..=spec.max));
                             calc.update_val(val);
                         });
+                        ui.end_row();
                         
                         if stop_idx == 1 {
                             app.config.phase1.stop_type = tb_core::stops::StopType::StandardStop { calc };
@@ -104,67 +121,68 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                     _ => {}
                 }
                 
-                ui.add_space(8.0);
-                
-                if stop_idx != 0 { // If not Fixed Bar Hold, show Take Profit
+                if stop_idx != 0 {
                     ui.label("Take Profit:");
-                    
                     let mut current_tp = app.config.phase1.take_profit.clone();
-                    
-                    // Force a Take Profit if using a Static Stop
                     if stop_idx == 1 && matches!(current_tp, tb_core::stops::TakeProfit::None) {
                         current_tp = tb_core::stops::TakeProfit::RiskReward { multiplier: 2.0 };
                     }
-                    
                     let available_tps = tb_core::stops::TakeProfit::available();
-                    
-                    // Find current index
                     let mut tp_idx = available_tps.iter().position(|(t, _, _)| std::mem::discriminant(t) == std::mem::discriminant(&current_tp)).unwrap_or(0);
                     
-                    ui.horizontal(|ui| {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         egui::ComboBox::from_id_source("tp_type_dropdown")
                             .selected_text(available_tps[tp_idx].1)
                             .show_ui(ui, |ui| {
                                 for (i, (tp, name, _)) in available_tps.iter().enumerate() {
                                     if stop_idx == 1 && matches!(tp, tb_core::stops::TakeProfit::None) {
-                                        continue; // Don't allow None for Static Stop
+                                        continue;
                                     }
                                     ui.selectable_value(&mut tp_idx, i, *name);
                                 }
                             });
                             
-                        // Ensure TP is set to the selected type
                         if std::mem::discriminant(&current_tp) != std::mem::discriminant(&available_tps[tp_idx].0) {
                             current_tp = available_tps[tp_idx].0.clone();
                         }
                         
                         if let Some(spec) = &available_tps[tp_idx].2 {
                             let mut val = current_tp.get_val();
-                            ui.add(egui::Slider::new(&mut val, spec.min..=spec.max).text(spec.label));
+                            ui.add(egui::Slider::new(&mut val, spec.min..=spec.max));
                             current_tp.update_val(val);
                         }
                     });
-                    
+                    ui.end_row();
                     app.config.phase1.take_profit = current_tp;
                 }
                 
-                ui.add_space(4.0);
                 ui.label("Trade Direction:");
-                ui.radio_value(&mut app.config.phase1.trade_direction, tb_core::ast::TradeDirection::Long, "Long Only");
-                ui.radio_value(&mut app.config.phase1.trade_direction, tb_core::ast::TradeDirection::Short, "Short Only");
-            });
-
-        ui.add_space(8.0);
-        
-        egui::CollapsingHeader::new("2. MAP-Elites Diversity Grid")
-            .default_open(true)
-            .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.label("X-Axis (Diversity Trait 1):");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let current_dir = match app.config.phase1.trade_direction {
+                        tb_core::ast::TradeDirection::Long => "Long Only",
+                        tb_core::ast::TradeDirection::Short => "Short Only",
+                        tb_core::ast::TradeDirection::LongAndShort => "Long & Short",
+                    };
                     
+                    egui::ComboBox::from_id_source("trade_dir_dropdown")
+                        .selected_text(current_dir)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut app.config.phase1.trade_direction, tb_core::ast::TradeDirection::Long, "Long Only");
+                            ui.selectable_value(&mut app.config.phase1.trade_direction, tb_core::ast::TradeDirection::Short, "Short Only");
+                            ui.selectable_value(&mut app.config.phase1.trade_direction, tb_core::ast::TradeDirection::LongAndShort, "Long & Short");
+                        });
+                });
+                ui.end_row();
+
+                // --- Diversity Grid ---
+                ui.label(egui::RichText::new("Diversity Grid").strong().size(14.0));
+                ui.label("");
+                ui.end_row();
+
+                ui.label("Diversity Trait 1:");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let x_options = tb_core::archive::ArchiveTrait::available();
                     let current_x_label = x_options.iter().find(|(t, _)| *t == app.config.phase1.map_x).map(|(_, l)| *l).unwrap_or("Unknown");
-                    
                     egui::ComboBox::from_id_source("map_x_combo")
                         .selected_text(current_x_label)
                         .show_ui(ui, |ui| {
@@ -173,12 +191,12 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                             }
                         });
                 });
-                ui.horizontal(|ui| {
-                    ui.label("Y-Axis (Diversity Trait 2):");
-                    
+                ui.end_row();
+
+                ui.label("Diversity Trait 2:");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let y_options = tb_core::archive::ArchiveTrait::available();
                     let current_y_label = y_options.iter().find(|(t, _)| *t == app.config.phase1.map_y).map(|(_, l)| *l).unwrap_or("Unknown");
-                    
                     egui::ComboBox::from_id_source("map_y_combo")
                         .selected_text(current_y_label)
                         .show_ui(ui, |ui| {
@@ -187,10 +205,10 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                             }
                         });
                 });
-                
-                ui.add_space(8.0);
-                ui.horizontal(|ui| {
-                    ui.label("Grid Resolution (Size):");
+                ui.end_row();
+
+                ui.label("Grid Resolution:");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     egui::ComboBox::from_id_source("grid_size_combo")
                         .selected_text(format!("{}x{}", app.config.phase1.grid_size, app.config.phase1.grid_size))
                         .show_ui(ui, |ui| {
@@ -199,37 +217,80 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                             ui.selectable_value(&mut app.config.phase1.grid_size, 50, "50x50 (High)");
                         });
                 });
-            });
+                ui.end_row();
 
-        ui.add_space(8.0);
-        
-        egui::CollapsingHeader::new("3. Fitness Maximizer")
-            .default_open(true)
-            .show(ui, |ui| {
+                // --- Fitness Metric ---
+                ui.label(egui::RichText::new("Fitness Metric").strong().size(14.0));
+                ui.label("");
+                ui.end_row();
+
                 ui.label("Optimize Cells For:");
-                for (func, label) in tb_core::fitness::FitnessFunction::available() {
-                    ui.radio_value(&mut app.config.phase1.fitness, func, label);
-                }
-            });
-            
-        ui.add_space(8.0);
-        
-        egui::CollapsingHeader::new("4. Data Validation")
-            .default_open(true)
-            .show(ui, |ui| {
-                ui.add(egui::Slider::new(&mut app.config.phase1.in_sample_pct, 0.1..=0.9).text("In-Sample Split (%)").custom_formatter(|n, _| format!("{:.0}%", n * 100.0)));
-            });
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let available = tb_core::fitness::FitnessFunction::available();
+                    let current_label = available.iter()
+                        .find(|(f, _)| std::mem::discriminant(f) == std::mem::discriminant(&app.config.phase1.fitness))
+                        .map(|(_, l)| *l)
+                        .unwrap_or("Select");
+                    
+                    egui::ComboBox::from_id_source("fitness_metric_combo")
+                        .selected_text(current_label)
+                        .show_ui(ui, |ui| {
+                            for (func, label) in available {
+                                ui.selectable_value(&mut app.config.phase1.fitness, func, label);
+                            }
+                        });
+                });
+                ui.end_row();
 
-        ui.add_space(8.0);
-        
-        egui::CollapsingHeader::new("5. Indicator Universe")
-            .default_open(true)
-            .show(ui, |ui| {
-                ui.label(format!("{} Indicators Selected", app.config.phase1.permitted_indicators.len()));
-                if ui.button("⚙ Configure Indicator Universe").clicked() {
-                    app.show_indicator_modal = true;
-                }
-            });
+                // --- Data Validation ---
+                ui.label(egui::RichText::new("Data Validation").strong().size(14.0));
+                ui.label("");
+                ui.end_row();
+
+                ui.label("In-Sample Split:");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add(egui::Slider::new(&mut app.config.phase1.in_sample_pct, 0.1..=0.9).text("%").custom_formatter(|n, _| format!("{:.0}%", n * 100.0)));
+                });
+                ui.end_row();
+
+                // --- Robustness Filters ---
+                ui.label(egui::RichText::new("Robustness Filters").strong().size(14.0));
+                ui.label("");
+                ui.end_row();
+
+                ui.label("Occam's Penalty:");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add(egui::Slider::new(&mut app.config.phase1.occam_penalty_pct, 0.0..=0.25).text("%").custom_formatter(|n, _| format!("{:.1}%", n * 100.0)));
+                });
+                ui.end_row();
+
+                ui.label("Min Trade Count:");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add(egui::Slider::new(&mut app.config.phase1.min_trades, 1..=500));
+                });
+                ui.end_row();
+
+                ui.label("Dumb Luck Filter:");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add(egui::Slider::new(&mut app.config.phase1.random_benchmark_percentile, 0.5..=0.99).text("PCTL").custom_formatter(|n, _| format!("{:.0}th", n * 100.0)));
+                });
+                ui.end_row();
+
+                // --- Indicator Universe ---
+                ui.label(egui::RichText::new("Indicator Universe").strong().size(14.0));
+                ui.label("");
+                ui.end_row();
+
+                ui.label("Selected:");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.button("⚙ Configure").clicked() {
+                        app.show_indicator_modal = true;
+                    }
+                    ui.label(format!("{} Indicators", app.config.phase1.permitted_indicators.len()));
+                });
+                ui.end_row();
+
+            }); // End Grid
 
         ui.add_space(16.0);
         
@@ -240,6 +301,10 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                 
                 let elite_tx = app.elite_tx.clone().expect("Elite tx must be initialized");
                 let elite_rx = app.elite_rx.clone().expect("Elite rx must be initialized");
+                
+                let (engine_tx, engine_rx) = crossbeam_channel::unbounded();
+                app.engine_tx = Some(engine_tx.clone());
+                app.engine_rx = Some(engine_rx);
                 
                 let lf = loaded_data.clone();
                 let phase1_config = app.config.phase1.clone();
@@ -347,8 +412,8 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                     // 5. Run the Genetic Algorithm
                     let engine = std::sync::Arc::new(BitwiseEngine::new(arc_grid.clone(), arc_targets));
                     let max_complexity = 5; // Hardcoded fallback max for now based on AST max
-                    let archive = tb_bitwise::archive::MapArchive::new(phase1_config.map_x.clone(), phase1_config.map_y.clone(), phase1_config.fitness.clone(), phase1_config.grid_size, closes.len() as u32, max_complexity);
-                    let mut ga = GeneticAlgorithm::new(engine, 5_000, 50, phase1_config.trade_direction.clone(), archive); // 50 Generations
+                    let archive = tb_bitwise::archive::MapArchive::new(phase1_config.map_x.clone(), phase1_config.map_y.clone(), phase1_config.fitness.clone(), phase1_config.grid_size, closes.len() as u32, max_complexity, phase1_config.min_trades, phase1_config.occam_penalty_pct);
+                    let mut ga = GeneticAlgorithm::new(engine.clone(), 5_000, 50, phase1_config.trade_direction.clone(), archive, phase1_config.random_benchmark_percentile); // 50 Generations
                     
                     let _ = ui_tx.send(crate::state::GenerationMetrics {
                         generation: 0, elapsed_seconds: 0.0, total_generated: 0, total_discarded: 0, strategies: vec![],
@@ -376,14 +441,25 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                                 profit_factor: king.metrics.profit_factor,
                                 cpc_index: king.metrics.cpc_index,
                                 corr_coef: king.metrics.corr_coef,
-                                expectancy: king.metrics.avg_trade,
-                                trade_frequency: (king.metrics.total_trades as f64 / closes.len() as f64) * 100.0,
+                                avg_trade: king.metrics.avg_trade,
+                                avg_win: king.metrics.avg_win,
+                                avg_loss: king.metrics.avg_loss,
+                                std_win: king.metrics.std_win,
+                                std_loss: king.metrics.std_loss,
+                                largest_win: king.metrics.largest_win,
+                                largest_loss: king.metrics.largest_loss,
+                                max_consecutive_losses: king.metrics.max_consecutive_losses,
+                                exposure_pct: king.metrics.exposure_pct,
                                 indicator_count: king.conditions.len() as u8,
+                                condition_indexes: king.conditions.clone(),
                             };
                             elite_strategies.push(elite.clone());
                             let _ = elite_tx.send(elite); // Send to Simulator
                         }
                     }
+
+                    // Send Engine to UI
+                    let _ = engine_tx.send(engine.clone());
 
                     // Send Metrics to UI
                     let _ = ui_tx.send(crate::state::GenerationMetrics {
@@ -440,6 +516,31 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                         }
                     }
                 }
+                
+                ui.add_space(8.0);
+                if ui.button("⚙ Metric Filters").clicked() {
+                    app.show_metric_filters_modal = true;
+                }
+                
+                ui.add_space(8.0);
+                if ui.button("🔬 Robustness Report").clicked() {
+                    if let (Some(engine), Some(idx)) = (&app.bitwise_engine, app.selected_strategy_idx) {
+                        if let Some(metrics) = &app.latest_metrics {
+                            if idx < metrics.strategies.len() {
+                                let strategy = &metrics.strategies[idx];
+                                let report = tb_bitwise::robustness::generate_report(
+                                    engine,
+                                    &strategy.condition_indexes,
+                                    &app.config.phase1.trade_direction,
+                                    app.robustness_noise_pct / 100.0,
+                                    app.robustness_top_n_drop,
+                                );
+                                app.robustness_report = Some(report);
+                                app.show_robustness_modal = true;
+                            }
+                        }
+                    }
+                }
             });
             ui.add_space(16.0);
             
@@ -466,19 +567,37 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                         // Header
                         ui.label(egui::RichText::new("AST Structure (Logic)").strong());
                         ui.label(egui::RichText::new("Total PnL").strong().color(egui::Color32::LIGHT_GREEN));
+                        ui.label(egui::RichText::new("Avg Trade").strong()).on_hover_text("Expected $ per trade");
                         ui.label(egui::RichText::new("Win %").strong());
-                        ui.label(egui::RichText::new("Drawdown").strong());
+                        ui.label(egui::RichText::new("Exposure (%)").strong());
+                        
+                        ui.label(egui::RichText::new("Ratio W/L").strong());
+                        ui.label(egui::RichText::new("Profit Factor").strong());
+                        
+                        ui.label(egui::RichText::new("Max DD").strong()).on_hover_text("Max Drawdown");
+                        ui.label(egui::RichText::new("Max Cons. Loss").strong());
+                        ui.label(egui::RichText::new("Largest Win/Loss").strong());
+                        ui.label(egui::RichText::new("PnL/DD").strong());
+                        
                         ui.label(egui::RichText::new("Sharpe").strong());
                         ui.label(egui::RichText::new("Sortino").strong());
-                        ui.label(egui::RichText::new("Profit Factor").strong());
-                        ui.label(egui::RichText::new("Exposure (%)").strong());
+                        ui.label(egui::RichText::new("Corr Coef").strong()).on_hover_text("Equity curve straightness (1.0 = perfect)");
                         ui.label(egui::RichText::new("Complexity").strong());
                         ui.end_row();
 
                         // Rows
-                        for strategy in &metrics.strategies {
+                        let filtered_strategies: Vec<_> = metrics.strategies.iter().filter(|s| {
+                            s.pnl >= app.min_pnl_filter && s.pnl <= app.max_pnl_filter &&
+                            s.fitness >= app.min_win_rate_filter && s.fitness <= app.max_win_rate_filter
+                        }).collect();
+                        
+                        for (idx, strategy) in filtered_strategies.iter().enumerate() {
                             // 1. AST Structure
-                            ui.label(strategy.sketch.to_string());
+                            let is_selected = app.selected_strategy_idx == Some(idx);
+                            if ui.selectable_label(is_selected, strategy.sketch.to_string()).clicked() {
+                                app.selected_strategy_idx = Some(idx);
+                                app.robustness_disabled_conditions.clear();
+                            }
                             
                             // 2. Total PnL
                             ui.colored_label(
@@ -486,25 +605,47 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                                 format!("{:.2}", strategy.pnl)
                             );
                             
-                            // 3. Win %
+                            // 3. Avg Trade
+                            ui.label(format!("{:.2}", strategy.avg_trade));
+                            
+                            // 4. Win %
                             ui.label(format!("{:.1}%", strategy.fitness)); // Using fitness field which is populated with win_rate
 
-                            // 4. Drawdown
-                            ui.colored_label(egui::Color32::LIGHT_RED, format!("{:.2}", strategy.max_drawdown));
-
-                            // 5. Sharpe
-                            ui.label(format!("{:.2}", strategy.sharpe));
-
-                            // 6. Sortino
-                            ui.label(format!("{:.2}", strategy.sortino));
+                            // 5. Exposure %
+                            ui.label(format!("{:.1}%", strategy.exposure_pct));
+                            
+                            // 6. Ratio W/L
+                            let ratio_wl = if strategy.avg_loss > 0.0 { strategy.avg_win / strategy.avg_loss } else { strategy.avg_win };
+                            ui.label(format!("{:.2}", ratio_wl));
 
                             // 7. Profit Factor
-                            ui.label(format!("{:.2}", strategy.profit_factor));
+                            ui.colored_label(
+                                if strategy.profit_factor >= 1.5 { egui::Color32::LIGHT_GREEN } else { ui.visuals().text_color() },
+                                format!("{:.2}", strategy.profit_factor)
+                            );
                             
-                            // 8. Exposure
-                            ui.label(format!("{:.1}%", strategy.trade_frequency));
+                            // 8. Max DD
+                            ui.colored_label(egui::Color32::LIGHT_RED, format!("{:.2}", strategy.max_drawdown));
                             
-                            // 5. Complexity
+                            // 9. Max Cons. Loss
+                            ui.label(format!("{}", strategy.max_consecutive_losses));
+                            
+                            // 10. Largest Win/Loss
+                            ui.label(format!("{:.1} / {:.1}", strategy.largest_win, strategy.largest_loss));
+                            
+                            // 11. PnL/DD
+                            ui.label(format!("{:.2}", strategy.pnl_over_dd));
+
+                            // 12. Sharpe
+                            ui.label(format!("{:.2}", strategy.sharpe));
+
+                            // 13. Sortino
+                            ui.label(format!("{:.2}", strategy.sortino));
+                            
+                            // 14. Corr Coef
+                            ui.label(format!("{:.3}", strategy.corr_coef));
+
+                            // 15. Complexity
                             ui.label(format!("{}", strategy.indicator_count));
                             
                             ui.end_row();
@@ -556,9 +697,9 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                     sorted_cats.sort();
                     
                     for cat in sorted_cats {
-                        egui::CollapsingHeader::new(cat)
-                            .default_open(false)
-                            .show(ui, |ui| {
+                        ui.label(egui::RichText::new(cat).strong());
+                        ui.add_space(2.0);
+                        ui.indent(cat, |ui| {
                                 if let Some(names) = categories.get(cat) {
                                     for &ind in names {
                                         let mut is_enabled = app.config.phase1.permitted_indicators.contains(&ind.to_string());
@@ -576,5 +717,40 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                 });
             });
         app.show_indicator_modal = is_open;
+    }
+
+    if app.show_metric_filters_modal {
+        let mut is_open = app.show_metric_filters_modal;
+        egui::Window::new("Metric Filters")
+            .open(&mut is_open)
+            .collapsible(false)
+            .resizable(false)
+            .show(ctx, |ui| {
+                ui.label(egui::RichText::new("Filter Leaderboard Results").strong());
+                ui.add_space(8.0);
+                
+                egui::Grid::new("metric_filters_grid")
+                    .spacing([20.0, 8.0])
+                    .show(ui, |ui| {
+                        ui.label("Net PnL:");
+                        ui.horizontal(|ui| {
+                            ui.label("Min:");
+                            ui.add(egui::DragValue::new(&mut app.min_pnl_filter).speed(100.0));
+                            ui.label("Max:");
+                            ui.add(egui::DragValue::new(&mut app.max_pnl_filter).speed(100.0));
+                        });
+                        ui.end_row();
+                        
+                        ui.label("Win Rate (%):");
+                        ui.horizontal(|ui| {
+                            ui.label("Min:");
+                            ui.add(egui::DragValue::new(&mut app.min_win_rate_filter).speed(1.0).clamp_range(0.0..=100.0));
+                            ui.label("Max:");
+                            ui.add(egui::DragValue::new(&mut app.max_win_rate_filter).speed(1.0).clamp_range(0.0..=100.0));
+                        });
+                        ui.end_row();
+                    });
+            });
+        app.show_metric_filters_modal = is_open;
     }
 }

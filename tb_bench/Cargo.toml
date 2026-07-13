@@ -5,7 +5,6 @@ edition = "2024"
 
 [dependencies]
 tb_core = { path = "../tb_core" }
-tb_foundry = { path = "../tb_foundry" }
 tb_simulator = { path = "../tb_simulator" }
 tb_bitwise = { path = "../tb_bitwise" }
 tracing = "0.1"

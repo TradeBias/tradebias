@@ -13,6 +13,12 @@ pub struct StrategyMetrics {
     pub sum_xy: f64,
     pub sum_x2: f64,
     pub sum_y2: f64,
+    pub sum_win_ret2: f64,
+    pub sum_loss_ret2: f64,
+    pub max_consecutive_losses: u32,
+    pub current_losing_streak: u32,
+    pub largest_win: f64,
+    pub largest_loss: f64,
 }
 
 #[derive(Debug, Clone)]
@@ -28,10 +34,16 @@ pub struct StrategyResult {
     pub sharpe: f64,
     pub sortino: f64,
     pub avg_trade: f64,
+    pub avg_win: f64,
+    pub avg_loss: f64,
+    pub std_win: f64,
+    pub std_loss: f64,
+    pub largest_win: f64,
+    pub largest_loss: f64,
+    pub max_consecutive_losses: u32,
+    pub exposure_pct: f64,
     pub cpc_index: f64,
     pub corr_coef: f64,
-    pub t_test: f64,
-    pub cagr: f64,
 }
 
 impl StrategyMetrics {
@@ -51,6 +63,12 @@ impl StrategyMetrics {
             sum_xy: 0.0,
             sum_x2: 0.0,
             sum_y2: 0.0,
+            sum_win_ret2: 0.0,
+            sum_loss_ret2: 0.0,
+            max_consecutive_losses: 0,
+            current_losing_streak: 0,
+            largest_win: 0.0,
+            largest_loss: 0.0,
         }
     }
 
@@ -62,9 +80,22 @@ impl StrategyMetrics {
         if trade_pnl > 0.0 {
             self.winning_trades += 1;
             self.gross_profit += trade_pnl;
+            self.sum_win_ret2 += trade_pnl * trade_pnl;
+            self.current_losing_streak = 0;
+            if trade_pnl > self.largest_win {
+                self.largest_win = trade_pnl;
+            }
         } else {
             self.gross_loss += trade_pnl.abs();
             self.sum_downside_ret2 += trade_pnl * trade_pnl;
+            self.sum_loss_ret2 += trade_pnl * trade_pnl;
+            self.current_losing_streak += 1;
+            if self.current_losing_streak > self.max_consecutive_losses {
+                self.max_consecutive_losses = self.current_losing_streak;
+            }
+            if trade_pnl < self.largest_loss { // largest_loss will be a negative number, e.g. -50.0
+                self.largest_loss = trade_pnl;
+            }
         }
 
         self.sum_ret2 += trade_pnl * trade_pnl;
@@ -88,13 +119,15 @@ impl StrategyMetrics {
         self.sum_y2 += y * y;
     }
 
-    pub fn finalize(self) -> StrategyResult {
+    pub fn finalize(self, total_bars: usize) -> StrategyResult {
         if self.total_trades == 0 {
             return StrategyResult {
                 total_trades: 0, winning_trades: 0, win_rate: 0.0, total_pnl: 0.0,
                 max_drawdown: 0.0, pnl_over_dd: 0.0, ratio_wl: 0.0, profit_factor: 0.0,
-                sharpe: 0.0, sortino: 0.0, avg_trade: 0.0, cpc_index: 0.0,
-                corr_coef: 0.0, t_test: 0.0, cagr: 0.0,
+                sharpe: 0.0, sortino: 0.0, avg_trade: 0.0, avg_win: 0.0, avg_loss: 0.0,
+                std_win: 0.0, std_loss: 0.0, largest_win: 0.0, largest_loss: 0.0,
+                max_consecutive_losses: 0, exposure_pct: 0.0, cpc_index: 0.0,
+                corr_coef: 0.0,
             };
         }
 
@@ -120,14 +153,22 @@ impl StrategyMetrics {
         let downside_dev = if downside_var > 0.0 { downside_var.sqrt() } else { 0.0 };
         let sortino = if downside_dev > 0.0 { avg_trade / downside_dev } else { 0.0 };
 
-        let t_test = if std_dev > 0.0 { (avg_trade * n.sqrt()) / std_dev } else { 0.0 };
+        // Standard deviations of winning and losing trades
+        let win_n = self.winning_trades as f64;
+        let win_var = if win_n > 0.0 { (self.sum_win_ret2 / win_n) - (avg_win * avg_win) } else { 0.0 };
+        let std_win = if win_var > 0.0 { win_var.sqrt() } else { 0.0 };
+
+        let loss_n = losing_trades as f64;
+        let loss_var = if loss_n > 0.0 { (self.sum_loss_ret2 / loss_n) - (avg_loss * avg_loss) } else { 0.0 };
+        let std_loss = if loss_var > 0.0 { loss_var.sqrt() } else { 0.0 };
+
+        // Exposure %
+        let exposure_pct = if total_bars > 0 { (self.total_trades as f64 / total_bars as f64) * 100.0 } else { 0.0 };
 
         // Correlation Coefficient (Pearson R) for Equity Curve Straightness
         let numerator = (n * self.sum_xy) - (self.sum_x * self.sum_y);
         let denominator = ((n * self.sum_x2 - (self.sum_x * self.sum_x)) * (n * self.sum_y2 - (self.sum_y * self.sum_y))).sqrt();
         let corr_coef = if denominator > 0.0 { numerator / denominator } else { 0.0 };
-
-        let cagr = self.total_pnl / 100.0; // Proxy Placeholder
 
         StrategyResult {
             total_trades: self.total_trades,
@@ -141,10 +182,16 @@ impl StrategyMetrics {
             sharpe,
             sortino,
             avg_trade,
+            avg_win,
+            avg_loss,
+            std_win,
+            std_loss,
+            largest_win: self.largest_win,
+            largest_loss: self.largest_loss,
+            max_consecutive_losses: self.max_consecutive_losses,
+            exposure_pct,
             cpc_index,
             corr_coef,
-            t_test,
-            cagr,
         }
     }
 }
