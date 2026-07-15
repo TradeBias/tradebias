@@ -25,35 +25,18 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                 app.config.phase2.trailing_stop_pct = if trail_pct > 0.0 { Some(trail_pct / 100.0) } else { None };
             });
             
-            ui.add_space(10.0);
-            ui.collapsing("Alpha Generation Restrictions", |ui| {
-                ui.label("Indicators available for genetic mutation:");
-                let all_indicators = vec!["SMA", "EMA", "RSI", "MACD", "ATR"];
-                
-                for ind in all_indicators {
-                    let mut is_enabled = app.config.phase1.permitted_indicators.contains(&ind.to_string());
-                    if ui.checkbox(&mut is_enabled, ind).changed() {
-                        if is_enabled {
-                            app.config.phase1.permitted_indicators.push(ind.to_string());
-                        } else {
-                            app.config.phase1.permitted_indicators.retain(|x| x != ind);
-                        }
-                    }
-                }
-            });
-            
             if ui.button("Run Walk-Forward Backtest").clicked() && !app.wfo_running {
                 if let Some(data) = &app.loaded_data {
-                    let data_clone = data.clone();
-                    let phase2_config = app.config.phase2.clone();
-                    let phase1_config = app.config.phase1.clone();
-                    let wfo_config = tb_simulator::wfo::WfoConfig {
+                    let _data_clone = data.clone();
+                    let _phase2_config = app.config.phase2.clone();
+                    let _phase1_config = app.config.phase1.clone();
+                    let _wfo_config = tb_simulator::wfo::WfoConfig {
                         anchored: false,
                         is_window_size: 1000,
                         oos_window_size: 200,
                     }; 
-                    let generations = 5;
-                    let population_size = 10;
+                    let _generations = 5;
+                    let _population_size = 10;
                     
                     let (tx, rx) = crossbeam_channel::unbounded();
                     app.simulator_wfo_rx = Some(rx);

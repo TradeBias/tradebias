@@ -12,3 +12,6 @@ rand = "0.8"
 rayon = "1.8"
 tb_core = { path = "../tb_core" }
 tb_math = { version = "0.1.0", path = "../tb_math" }
+dashmap = "6.2.1"
+ahash = "0.8.12"
+tb_indicators = { version = "0.1.0", path = "../tb_indicators" }

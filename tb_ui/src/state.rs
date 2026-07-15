@@ -15,6 +15,24 @@ pub struct GenerationMetrics {
     pub status_msg: Option<String>,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct CustomVariable {
+    pub name: String,
+    pub min: u32,
+    pub max: u32,
+    pub step: u32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Pill {
+    Source(String),            // e.g. "Close", "Open"
+    Indicator(String, String), // e.g. "SMA", "Var_1" (Points to the CustomVariable name for period)
+    Operator(String),          // e.g. "+", "-", "*", "/"
+    Constant(f64),             // e.g. 2.0
+    OpenBracket,               // "("
+    CloseBracket,              // ")"
+}
+
 pub struct ColumnMapping {
     pub time: String,
     pub open: String,
@@ -39,7 +57,7 @@ impl Default for ColumnMapping {
 
 pub struct TradingApp {
     pub selected_tab: usize,
-    pub right_panel_open: bool,
+    pub _right_panel_open: bool,
     pub config: tb_core::SessionConfig,
     pub main_chart: TradingChart,
     pub loaded_data: Option<LazyFrame>,
@@ -65,14 +83,16 @@ pub struct TradingApp {
     pub max_pnl_filter: f64,
     pub min_win_rate_filter: f64,
     pub max_win_rate_filter: f64,
+    pub min_corr_coef_filter: f64,
+    pub max_cons_loss_filter: usize,
     pub raw_df_cache: Option<(DataFrame, PathBuf)>,
     pub available_columns: Vec<String>,
     pub column_mapping: ColumnMapping,
     
-    // Regime Highlighting State
-    pub is_dragging_regime: bool,
-    pub current_regime_start: Option<usize>,
-    pub selected_regimes: Vec<(usize, usize)>,
+    // Regime Highlighting    // CPCV State (Now Unused)
+    pub _is_dragging_regime: bool,
+    pub _current_regime_start: Option<usize>,
+    pub _selected_regimes: Vec<(usize, usize)>,
     
     // Channels
     pub elite_tx: Option<Sender<EliteStrategy>>,
@@ -80,26 +100,79 @@ pub struct TradingApp {
     pub foundry_rx: Option<Receiver<GenerationMetrics>>,
     pub latest_metrics: Option<GenerationMetrics>,
     
-    // WFO State (Live Feed from Phase 1)
-    pub wfo_rx: Option<Receiver<Result<(EliteStrategy, tb_simulator::metrics::TearSheet), String>>>,
-    pub wfo_results: Vec<(EliteStrategy, tb_simulator::metrics::TearSheet)>,
+    // Phase 2 State
+    pub _wfo_rx: Option<Receiver<Result<(EliteStrategy, tb_simulator::metrics::TearSheet), String>>>,
+    pub _wfo_results: Vec<(EliteStrategy, tb_simulator::metrics::TearSheet)>,
     pub wfo_running: bool,
     
     // WFO State (Dedicated Simulator Tab)
     pub simulator_wfo_rx: Option<Receiver<Result<tb_simulator::metrics::TearSheet, String>>>,
     pub latest_simulator_tearsheet: Option<tb_simulator::metrics::TearSheet>,
     
-    // Persisted Engine for Robustness Testing
     pub bitwise_engine: Option<std::sync::Arc<tb_bitwise::engine::BitwiseEngine>>,
     pub engine_tx: Option<Sender<std::sync::Arc<tb_bitwise::engine::BitwiseEngine>>>,
     pub engine_rx: Option<Receiver<std::sync::Arc<tb_bitwise::engine::BitwiseEngine>>>,
+    
+    // Indicator Forge State
+    pub forge_blueprints: Vec<tb_core::ast::IndicatorBlueprint>,
+    pub forge_active_blueprint_name: String,
+    pub forge_active_type: tb_core::ast::SemanticType,
+    pub forge_node_graph: crate::node_graph::NodeGraphState,
+    pub forge_graph_history: Vec<(String, crate::node_graph::NodeGraphState)>,
+    pub forge_show_chart: bool,
+    pub forge_last_ast_str: String,
+}
+
+impl TradingApp {
+    pub fn rebuild_engine_if_data_loaded(&mut self) {
+        if let Some(lf) = &self.loaded_data {
+            if let Ok(df) = lf.clone().collect() {
+                use polars::prelude::*;
+                let opens: Vec<f64> = df.column("open").unwrap().cast(&DataType::Float64).unwrap().f64().unwrap().into_no_null_iter().collect();
+                let highs: Vec<f64> = df.column("high").unwrap().cast(&DataType::Float64).unwrap().f64().unwrap().into_no_null_iter().collect();
+                let lows: Vec<f64> = df.column("low").unwrap().cast(&DataType::Float64).unwrap().f64().unwrap().into_no_null_iter().collect();
+                let closes: Vec<f64> = df.column("close").unwrap().cast(&DataType::Float64).unwrap().f64().unwrap().into_no_null_iter().collect();
+                let volumes: Vec<f64> = if let Ok(vol) = df.column("volume").or_else(|_| df.column("Volume")) {
+                    vol.cast(&DataType::Float64).unwrap().f64().unwrap().into_no_null_iter().collect()
+                } else {
+                    vec![0.0; closes.len()]
+                };
+
+                let raw_data = tb_bitwise::data::RawData::from_arrays(opens.clone(), highs.clone(), lows.clone(), closes.clone(), volumes.clone()).unwrap();
+                let cache = tb_bitwise::precompute::EngineCache::new(&raw_data, &[7, 14, 21, 50, 100, 200]);
+                let arc_cache = std::sync::Arc::new(cache);
+
+                let atr_data = match (&self.config.phase1.stop_type, &self.config.phase1.take_profit) {
+                    (tb_core::stops::StopType::StandardStop { calc: tb_core::stops::StopCalculation::Atr { .. } }, _) |
+                    (tb_core::stops::StopType::TrailingStop { calc: tb_core::stops::StopCalculation::Atr { .. } }, _) |
+                    (_, tb_core::stops::TakeProfit::Atr { .. }) => {
+                        let tr = tb_math::primitives::true_range(&highs, &lows, &closes);
+                        Some(tb_math::primitives::rma(&tr, 14))
+                    }
+                    _ => None,
+                };
+                
+                let targets = tb_bitwise::targets::TargetOutcomes::generate_advanced_stop(
+                    &raw_data, 
+                    &self.config.phase1.stop_type, 
+                    &self.config.phase1.take_profit,
+                    atr_data.as_deref(),
+                    self.config.phase1.slippage_penalty
+                );
+                let arc_targets = std::sync::Arc::new(targets);
+
+                self.bitwise_engine = Some(std::sync::Arc::new(tb_bitwise::engine::BitwiseEngine::new(arc_cache, arc_targets)));
+                println!("Global BitwiseEngine rebuilt successfully.");
+            }
+        }
+    }
 }
 
 impl Default for TradingApp {
     fn default() -> Self {
         Self {
             selected_tab: 0,
-            right_panel_open: true,
+            _right_panel_open: true,
             config: tb_core::SessionConfig::default(),
             main_chart: ChartBuilder::new()
                 .with_symbol("BTC-USD")
@@ -123,24 +196,36 @@ impl Default for TradingApp {
             max_pnl_filter: 100_000_000.0,
             min_win_rate_filter: 0.0,
             max_win_rate_filter: 100.0,
+            min_corr_coef_filter: -1.0,
+            max_cons_loss_filter: 1000,
             raw_df_cache: None,
             available_columns: vec![],
             column_mapping: ColumnMapping::default(),
-            is_dragging_regime: false,
-            current_regime_start: None,
-            selected_regimes: vec![],
+            _is_dragging_regime: false,
+            _current_regime_start: None,
+            _selected_regimes: Vec::new(),
             elite_tx: None,
             elite_rx: None,
             foundry_rx: None,
             latest_metrics: None,
-            wfo_rx: None,
-            wfo_results: vec![],
+            // Simulator (Phase 2)
+            _wfo_rx: None,
+            _wfo_results: Vec::new(),
             wfo_running: false,
             simulator_wfo_rx: None,
             latest_simulator_tearsheet: None,
+            
             bitwise_engine: None,
             engine_tx: None,
             engine_rx: None,
+            
+            forge_blueprints: tb_indicators::templates::default_blueprints(),
+            forge_active_blueprint_name: "New_Indicator".to_string(),
+            forge_active_type: tb_core::ast::SemanticType::Price,
+            forge_node_graph: crate::node_graph::NodeGraphState::default(),
+            forge_graph_history: Vec::new(),
+            forge_show_chart: false,
+            forge_last_ast_str: String::new(),
         }
     }
 }

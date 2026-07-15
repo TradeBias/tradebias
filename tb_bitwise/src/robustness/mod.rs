@@ -1,5 +1,5 @@
 use crate::engine::BitwiseEngine;
-use tb_core::ast::TradeDirection;
+use tb_core::ast::{Expr, TradeDirection};
 
 pub mod ablation;
 pub mod monte_carlo;
@@ -18,27 +18,27 @@ pub struct RobustnessReport {
 
 pub fn generate_report(
     engine: &BitwiseEngine, 
-    condition_indexes: &[usize], 
+    conditions: &[Expr], 
     direction: &TradeDirection,
     noise_variance_pct: f64,
-    top_n_to_delete: usize,
+    drop_percentage: f64,
 ) -> RobustnessReport {
     let baseline_curve = match direction {
-        TradeDirection::Long => engine.evaluate_with_curve_long(condition_indexes),
-        TradeDirection::Short => engine.evaluate_with_curve_short(condition_indexes),
-        TradeDirection::LongAndShort => engine.evaluate_with_curve_symmetric(condition_indexes),
+        TradeDirection::Long => engine.evaluate_with_curve_long(conditions),
+        TradeDirection::Short => engine.evaluate_with_curve_short(conditions),
+        TradeDirection::LongAndShort => engine.evaluate_with_curve_symmetric(conditions),
     };
     
-    let ablation_curves = ablation::run_ablations(engine, condition_indexes, direction);
+    let ablation_curves = ablation::run_ablations(engine, conditions, direction);
     let monte_carlo_curves = monte_carlo::run_block_bootstrap(&baseline_curve, 100);
     
     let slippage_curve = noise::generate_slippage_curve(
         engine,
-        condition_indexes,
+        conditions,
         direction,
         noise_variance_pct,
     );
-    let deletion_curve = trade_deletion::generate_deletion_curve(engine, condition_indexes, direction, top_n_to_delete);
+    let deletion_curve = trade_deletion::generate_deletion_curve(engine, conditions, direction, drop_percentage);
 
     RobustnessReport {
         baseline_curve,

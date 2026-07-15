@@ -29,6 +29,7 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                     }
                     app.loaded_data = Some(lf);
                     println!("Data loaded successfully from {:?}", path);
+                    app.rebuild_engine_if_data_loaded();
                 }
             }
         }
@@ -84,52 +85,12 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
             ui.label(egui::RichText::new("✅ Dataset Active").color(egui::Color32::GREEN));
         }
 
-        ui.add_space(24.0);
-        ui.separator();
-        ui.add_space(24.0);
-        
-        ui.heading("CPCV Regimes");
-        ui.label(egui::RichText::new("Drag on chart to define out-of-sample regimes.").color(egui::Color32::from_gray(180)));
-        ui.add_space(8.0);
-        
-        if app.selected_regimes.is_empty() {
-            ui.label("No regimes selected.");
-        } else {
-            for (i, r) in app.selected_regimes.iter().enumerate() {
-                ui.label(format!("Regime {}: Bars {} -> {}", i + 1, r.0, r.1));
-            }
-            ui.add_space(8.0);
-            if ui.button("Clear Regimes").clicked() {
-                app.selected_regimes.clear();
-            }
-        }
     });
 
     let central_frame = egui::Frame::default().fill(ctx.style().visuals.panel_fill).inner_margin(0.0);
     egui::CentralPanel::default().frame(central_frame).show(ctx, |ui| {
         app.main_chart.show(ui); 
         
-        if let Some(hover_idx_f64) = app.main_chart.chart.get_hover_bar_idx() {
-            let idx = hover_idx_f64.round() as usize;
-            
-            if ctx.input(|i| i.pointer.primary_pressed()) {
-                app.is_dragging_regime = true;
-                app.current_regime_start = Some(idx);
-            }
-            if ctx.input(|i| i.pointer.primary_released()) {
-                if app.is_dragging_regime {
-                    if let Some(start) = app.current_regime_start {
-                        let end = idx;
-                        let min = start.min(end);
-                        let max = start.max(end);
-                        if max.saturating_sub(min) > 2 {
-                            app.selected_regimes.push((min, max));
-                        }
-                    }
-                }
-                app.is_dragging_regime = false;
-                app.current_regime_start = None;
-            }
-        }
+        // CPCV dragging logic removed
     });
 }

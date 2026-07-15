@@ -18,7 +18,7 @@ pub fn export_leaderboard_to_csv(
     let is_pct_str = format!("{:.2}", config.in_sample_pct);
 
     for strategy in &metrics.strategies {
-        let ast = strategy.sketch.to_string().replace("\"", "\"\"");
+        let ast = format!("{}", strategy.sketch.entry).replace("\"", "\"\"");
         csv_content.push_str(&format!(
             "\"{}\",{:.4},{:.2},{:.4},{:.4},{:.4},{:.4},{:.4},{:.4},{:.4},{:.4},{:.4},{},{:.4},{:.4},{:.4},{:.4},{:.4},{:.1},{},{},{},{},{},{},{},{}\n",
             ast,

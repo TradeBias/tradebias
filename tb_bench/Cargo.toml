@@ -2,11 +2,13 @@
 name = "tb_bench"
 version = "0.1.0"
 edition = "2024"
+default-run = "tb_bench"
 
 [dependencies]
 tb_core = { path = "../tb_core" }
 tb_simulator = { path = "../tb_simulator" }
 tb_bitwise = { path = "../tb_bitwise" }
+tb_indicators = { path = "../tb_indicators" }
 tracing = "0.1"
 tracing-subscriber = "0.3"
 anyhow = "1.0"

@@ -26,6 +26,7 @@ impl eframe::App for TradingApp {
             1 => crate::tabs::alpha_foundry::render(self, ctx),
             2 => crate::tabs::simulator::render(self, ctx),
             3 => crate::tabs::library::render(self, ctx),
+            4 => crate::tabs::indicator_forge::render(self, ctx),
             _ => { 
                 egui::CentralPanel::default().show(ctx, |ui| {
                     ui.heading("Select a Tab"); 

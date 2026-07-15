@@ -1,4 +1,4 @@
-use rand::seq::SliceRandom;
+use rand::Rng;
 use rand::thread_rng;
 
 /// Runs Monte Carlo Block Bootstrapping on a baseline equity curve.
@@ -21,17 +21,14 @@ pub fn run_block_bootstrap(baseline_curve: &[f64], iterations: usize) -> Vec<Vec
     let block_size = 20.min(n);
     let num_blocks = n / block_size;
     
-    // Step 3: Run the simulations
+    // Step 3: Run the simulations using true bootstrapping (sampling with replacement)
     let mut rng = thread_rng();
     for _ in 0..iterations {
         let mut sim_curve = Vec::with_capacity(n);
         let mut current_equity = 0.0;
         
-        // We shuffle the indexes of the blocks to preserve internal clustering
-        let mut block_indexes: Vec<usize> = (0..num_blocks).collect();
-        block_indexes.shuffle(&mut rng);
-        
-        for &block_idx in &block_indexes {
+        for _ in 0..num_blocks {
+            let block_idx = rng.gen_range(0..num_blocks);
             let start = block_idx * block_size;
             let end = start + block_size;
             for r in &returns[start..end] {

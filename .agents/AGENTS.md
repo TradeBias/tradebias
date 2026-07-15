@@ -15,9 +15,9 @@ When generating, modifying, or refactoring code for the `greenfield` multi-crate
 * **Rule:** Do NOT use `Arc<Mutex<T>>` for cross-thread synchronization. 
 * **Solution:** Use **Crossbeam Channels** (`crossbeam_channel::unbounded`). The pipeline is a Producer-Consumer model. Thread A does work and pushes the owned result into a channel. Thread B listens to the channel. Data flows strictly in one direction.
 
-## 4. Polars over Ndarray (for Phase 1)
-* **Rule:** When writing matrix/array math for Phase 1 Alpha Generation, use 100% **Polars Native Expressions** (`Expr`). 
-* **Why:** It avoids the `unsafe` memory conversions required by `ndarray`, guaranteeing Vibe-Coded stability, and automatically unlocks cuDF GPU acceleration.
+## 4. Custom Bitwise Engine (No Polars)
+* **Rule:** Do NOT use `polars` for the Phase 1 Alpha Generation or GA Engine. We are building our own custom, lightweight `tb_bitwise` engine for evaluation. 
+* **Why:** The project has pivoted away from Polars to an internal bitwise arrays execution engine to minimize overhead and maximize raw optimization speed without heavy dependencies.
 
 ## 5. JSON AST Enforcement
 * **Rule:** All strategy logic (sketches) must be represented as the `tb_core::Sketch` JSON AST (Recursive Internally Tagged Enums). Rust should NEVER do string-concatenation to generate code (e.g., writing `.mq5` files). Rust only parses the JSON; the LLM API does the translation.

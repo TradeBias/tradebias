@@ -45,7 +45,7 @@ impl ExecutionSimulator {
             let mut seen_signatures = std::collections::HashSet::new();
             
             for elite in rx {
-                let sig = elite.sketch.to_string();
+                let sig = format!("{:?}", elite.sketch);
                 if seen_signatures.contains(&sig) {
                     continue; // Skip duplicate elites to save WFO compute
                 }

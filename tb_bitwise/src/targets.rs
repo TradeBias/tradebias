@@ -1,5 +1,7 @@
 use tracing::info;
 use crate::data::RawData;
+use tb_core::stops::{StopCalculation, TakeProfit};
+use rayon::prelude::*;
 
 pub struct TargetOutcomes {
     pub long_pnl: Vec<f64>,
@@ -11,7 +13,7 @@ pub struct TargetOutcomes {
 impl TargetOutcomes {
     /// Generates outcomes based on a fixed N-bar holding period.
     /// This is the simplest, fastest, and most robust way to calculate PnL.
-    pub fn generate_fixed_hold(data: &RawData, hold_bars: usize) -> Self {
+    pub fn generate_fixed_hold(data: &RawData, hold_bars: usize, slippage_penalty: f64) -> Self {
         info!("Pre-computing Target Outcomes (Fixed Hold: {} bars)...", hold_bars);
         let start_time = std::time::Instant::now();
         
@@ -30,8 +32,8 @@ impl TargetOutcomes {
             let entry_price = data.open[i];
             let exit_price = data.close[i + hold_bars];
 
-            let l_pnl = exit_price - entry_price;
-            let s_pnl = entry_price - exit_price;
+            let l_pnl = (exit_price - entry_price) - slippage_penalty;
+            let s_pnl = (entry_price - exit_price) - slippage_penalty;
 
             long_pnl[i] = l_pnl;
             short_pnl[i] = s_pnl;
@@ -80,22 +82,23 @@ impl TargetOutcomes {
         data: &RawData, 
         stop_type: &tb_core::stops::StopType, 
         take_profit: &tb_core::stops::TakeProfit,
-        atr_data: Option<&[f64]>
+        atr_data: Option<&[f64]>,
+        slippage_penalty: f64
     ) -> Self {
         match stop_type {
             tb_core::stops::StopType::FixedBarHold { bars } => {
-                Self::generate_fixed_hold(data, *bars)
+                Self::generate_fixed_hold(data, *bars, slippage_penalty)
             },
             tb_core::stops::StopType::StandardStop { calc } => {
-                Self::generate_static_stop(data, calc, take_profit, atr_data)
+                Self::generate_static_stop(data, calc, take_profit, atr_data, slippage_penalty)
             },
             tb_core::stops::StopType::TrailingStop { calc } => {
-                Self::generate_trailing_stop(data, calc, take_profit, atr_data)
+                Self::generate_trailing_stop(data, calc, take_profit, atr_data, slippage_penalty)
             }
         }
     }
 
-    fn generate_static_stop(data: &RawData, calc: &tb_core::stops::StopCalculation, tp: &tb_core::stops::TakeProfit, atr_data: Option<&[f64]>) -> Self {
+    fn generate_static_stop(data: &RawData, calc: &tb_core::stops::StopCalculation, tp: &tb_core::stops::TakeProfit, atr_data: Option<&[f64]>, slippage_penalty: f64) -> Self {
         info!("Pre-computing Target Outcomes (Static Stop)...");
         let start_time = std::time::Instant::now();
         
@@ -105,7 +108,7 @@ impl TargetOutcomes {
         let mut long_winning_mask = vec![0u64; num_blocks];
         let mut short_winning_mask = vec![0u64; num_blocks];
 
-        for i in 0..data.close.len() {
+        let results: Vec<_> = (0..data.close.len()).into_par_iter().map(|i| {
             let entry_price = data.open[i];
             let stop_dist = Self::get_stop_distance(calc, entry_price, i, atr_data);
             let tp_dist = Self::get_tp_distance(tp, stop_dist, entry_price, i, atr_data);
@@ -155,12 +158,15 @@ impl TargetOutcomes {
                 }
             }
 
-            let l_pnl = long_exit_price - entry_price;
-            let s_pnl = entry_price - short_exit_price;
+            let l_pnl = (long_exit_price - entry_price) - slippage_penalty;
+            let s_pnl = (entry_price - short_exit_price) - slippage_penalty;
 
+            (l_pnl, s_pnl)
+        }).collect();
+
+        for (i, &(l_pnl, s_pnl)) in results.iter().enumerate() {
             long_pnl[i] = l_pnl;
             short_pnl[i] = s_pnl;
-
             if l_pnl > 0.0 { long_winning_mask[i / 64] |= 1 << (i % 64); }
             if s_pnl > 0.0 { short_winning_mask[i / 64] |= 1 << (i % 64); }
         }
@@ -169,7 +175,7 @@ impl TargetOutcomes {
         Self { long_pnl, short_pnl, long_winning_mask, short_winning_mask }
     }
 
-    fn generate_trailing_stop(data: &RawData, calc: &tb_core::stops::StopCalculation, tp: &tb_core::stops::TakeProfit, atr_data: Option<&[f64]>) -> Self {
+    fn generate_trailing_stop(data: &RawData, calc: &tb_core::stops::StopCalculation, tp: &tb_core::stops::TakeProfit, atr_data: Option<&[f64]>, slippage_penalty: f64) -> Self {
         info!("Pre-computing Target Outcomes (Trailing Stop)...");
         let start_time = std::time::Instant::now();
         
@@ -179,7 +185,7 @@ impl TargetOutcomes {
         let mut long_winning_mask = vec![0u64; num_blocks];
         let mut short_winning_mask = vec![0u64; num_blocks];
 
-        for i in 0..data.close.len() {
+        let results: Vec<_> = (0..data.close.len()).into_par_iter().map(|i| {
             let entry_price = data.open[i];
             
             // For Trailing stop, TP distance is evaluated at entry candle
@@ -233,12 +239,15 @@ impl TargetOutcomes {
                 }
             }
 
-            let l_pnl = long_exit_price - entry_price;
-            let s_pnl = entry_price - short_exit_price;
+            let l_pnl = (long_exit_price - entry_price) - slippage_penalty;
+            let s_pnl = (entry_price - short_exit_price) - slippage_penalty;
 
+            (l_pnl, s_pnl)
+        }).collect();
+
+        for (i, &(l_pnl, s_pnl)) in results.iter().enumerate() {
             long_pnl[i] = l_pnl;
             short_pnl[i] = s_pnl;
-
             if l_pnl > 0.0 { long_winning_mask[i / 64] |= 1 << (i % 64); }
             if s_pnl > 0.0 { short_winning_mask[i / 64] |= 1 << (i % 64); }
         }

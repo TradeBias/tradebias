@@ -67,8 +67,10 @@ pub fn render_mapping_modal(app: &mut TradingApp, ctx: &egui::Context) {
                                             Err(e) => println!("ERROR Parsing DataFrame to Bars: {}", e),
                                         }
                                     }
+                                    
                                     app.loaded_data = Some(lf);
                                     println!("CSV mapped, converted, and loaded!");
+                                    app.rebuild_engine_if_data_loaded();
                                 }
                             }
                         }
@@ -109,8 +111,8 @@ pub fn render_robustness_modal(app: &mut TradingApp, ctx: &egui::Context) {
                             if let Some(metrics) = &app.latest_metrics {
                                 if idx < metrics.strategies.len() {
                                     let strategy = &metrics.strategies[idx];
-                                    for &c_idx in &strategy.condition_indexes {
-                                        let name = &engine.grid.conditions[c_idx].name;
+                                    for (c_idx, c) in strategy.conditions.iter().enumerate() {
+                                        let name = format!("{:?}", c);
                                         let mut is_enabled = !app.robustness_disabled_conditions.contains(&c_idx);
                                         if ui.checkbox(&mut is_enabled, name).changed() {
                                             if is_enabled {
@@ -221,8 +223,9 @@ pub fn render_robustness_modal(app: &mut TradingApp, ctx: &egui::Context) {
             if let Some(metrics) = &app.latest_metrics {
                 if idx < metrics.strategies.len() {
                     let strategy = &metrics.strategies[idx];
-                    let active_conditions: Vec<usize> = strategy.condition_indexes.iter().copied()
-                        .filter(|&c| !app.robustness_disabled_conditions.contains(&c))
+                    let active_conditions: Vec<tb_core::ast::Expr> = strategy.conditions.iter().enumerate()
+                        .filter(|(idx, _)| !app.robustness_disabled_conditions.contains(idx))
+                        .map(|(_, c)| c.clone())
                         .collect();
                         
                     let new_report = tb_bitwise::robustness::generate_report(
@@ -230,7 +233,7 @@ pub fn render_robustness_modal(app: &mut TradingApp, ctx: &egui::Context) {
                         &active_conditions,
                         &app.config.phase1.trade_direction,
                         app.robustness_noise_pct / 100.0,
-                        app.robustness_top_n_drop,
+                        app.robustness_top_n_drop as f64 / 100.0,
                     );
                     app.robustness_report = Some(new_report);
                 }

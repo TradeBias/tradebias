@@ -1,18 +1,17 @@
 use tb_core::ast::{Expr, Sketch, TradeDirection};
-use crate::precompute::ConditionGrid;
 use crate::ga::Genome;
 
 /// Translates a raw Bitwise Genome into a standardized TradeBias JSON Sketch.
-pub fn translate_to_sketch(genome: &Genome, grid: &ConditionGrid, direction: TradeDirection) -> Option<Sketch> {
+pub fn translate_to_sketch(genome: &Genome, direction: TradeDirection) -> Option<Sketch> {
     if genome.conditions.is_empty() {
         return None;
     }
 
-    let mut entry_expr = grid.conditions[genome.conditions[0]].ast.clone();
+    let mut entry_expr = genome.conditions[0].clone();
 
     // Iterate through remaining conditions, binding them with logical AND
     for i in 1..genome.conditions.len() {
-        let rhs_expr = grid.conditions[genome.conditions[i]].ast.clone();
+        let rhs_expr = genome.conditions[i].clone();
         
         entry_expr = Expr::And {
             lhs: Box::new(entry_expr),

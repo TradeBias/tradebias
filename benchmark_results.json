@@ -1,0 +1,76 @@
+{
+  "total_cache_hits": 40890,
+  "total_cache_misses": 32058,
+  "hit_rate_percent": 56.05362724132259,
+  "generation_time_ms": 623,
+  "pipeline_evaluating_ms": 556,
+  "pipeline_archiving_ms": 16,
+  "pipeline_breeding_ms": 6,
+  "pipeline_deduping_ms": 12,
+  "nodes": {
+    "CrossBelow": {
+      "calls": 4418,
+      "total_time_ms": 1587.971
+    },
+    "Delay": {
+      "calls": 875,
+      "total_time_ms": 231.639
+    },
+    "CrossAbove": {
+      "calls": 4435,
+      "total_time_ms": 1598.768
+    },
+    "LessThan": {
+      "calls": 4406,
+      "total_time_ms": 1635.593
+    },
+    "TsMin": {
+      "calls": 808,
+      "total_time_ms": 263.482
+    },
+    "Div": {
+      "calls": 4653,
+      "total_time_ms": 1868.23
+    },
+    "TsMax": {
+      "calls": 781,
+      "total_time_ms": 263.187
+    },
+    "StdDev": {
+      "calls": 941,
+      "total_time_ms": 273.497
+    },
+    "GreaterThan": {
+      "calls": 4317,
+      "total_time_ms": 1602.916
+    },
+    "LinRegSlope": {
+      "calls": 3086,
+      "total_time_ms": 1156.243
+    },
+    "Constant": {
+      "calls": 54,
+      "total_time_ms": 8.438
+    },
+    "Sma": {
+      "calls": 771,
+      "total_time_ms": 217.438
+    },
+    "Ema": {
+      "calls": 744,
+      "total_time_ms": 200.288
+    },
+    "Sub": {
+      "calls": 7056,
+      "total_time_ms": 2180.207
+    },
+    "Add": {
+      "calls": 6929,
+      "total_time_ms": 2125.442
+    },
+    "Mul": {
+      "calls": 5360,
+      "total_time_ms": 1405.056
+    }
+  }
+}

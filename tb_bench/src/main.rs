@@ -1,137 +1,144 @@
-use clap::Parser;
-use tracing::{info, Level};
-use std::time::Instant;
+use std::sync::Arc;
 use tb_bitwise::data::RawData;
-use tb_bitwise::precompute::{ConditionGrid, BaseArray, SemanticType};
+use tb_bitwise::precompute::EngineCache;
 use tb_bitwise::targets::TargetOutcomes;
 use tb_bitwise::engine::BitwiseEngine;
+use tb_bitwise::ast_gen::AstGenerator;
 use tb_bitwise::ga::GeneticAlgorithm;
-use tb_bitwise::translator::translate_to_sketch;
 use tb_core::ast::TradeDirection;
+use serde::Serialize;
+use std::collections::HashMap;
 
-mod oracle;
+#[derive(Serialize)]
+struct TelemetryDump {
+    total_cache_hits: u64,
+    total_cache_misses: u64,
+    hit_rate_percent: f64,
+    generation_time_ms: u64,
+    pipeline_evaluating_ms: u128,
+    pipeline_archiving_ms: u128,
+    pipeline_breeding_ms: u128,
+    pipeline_deduping_ms: u128,
+    nodes: HashMap<String, NodeTelemetry>,
+}
 
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct Args {
-    /// The engine to benchmark (e.g., 'polars_continuous', 'polars_discrete', 'bitwise')
-    #[arg(short, long, default_value = "bitwise")]
-    engine: String,
-
-    /// Whether to run the Oracle Verification tests before benchmarking
-    #[arg(long, default_value_t = true)]
-    verify_oracle: bool,
+#[derive(Serialize)]
+struct NodeTelemetry {
+    calls: u64,
+    total_time_ms: f64,
 }
 
 fn main() {
-    tracing_subscriber::fmt()
-        .with_max_level(Level::INFO)
-        .init();
-
-    let args = Args::parse();
-
-    info!("Starting Agentic Test Bench (tb_bench)");
-    info!("Selected Engine: {}", args.engine);
-
-    if args.verify_oracle {
-        info!("Running Mathematical Oracle Verification...");
-        match oracle::run_oracle_tests(&args.engine) {
-            Ok(_) => info!("Oracle Tests PASSED. Math is locked."),
-            Err(e) => {
-                tracing::error!("ORACLE FAILURE: {}", e);
-                std::process::exit(1);
-            }
-        }
+    println!("Loading 10,000 bars of dummy data for benchmark...");
+    let data_len = 10_000;
+    
+    // Create dummy raw data
+    let mut close = Vec::with_capacity(data_len);
+    let mut open = Vec::with_capacity(data_len);
+    let mut high = Vec::with_capacity(data_len);
+    let mut low = Vec::with_capacity(data_len);
+    let mut volume = Vec::with_capacity(data_len);
+    
+    for i in 0..data_len {
+        let f = i as f64;
+        close.push(100.0 + (f * 0.01).sin() * 10.0);
+        open.push(100.0 + (f * 0.01).sin() * 10.0 - 1.0);
+        high.push(100.0 + (f * 0.01).sin() * 10.0 + 2.0);
+        low.push(100.0 + (f * 0.01).sin() * 10.0 - 2.0);
+        volume.push(1000.0 + (f * 0.05).cos() * 100.0);
     }
-
-    info!("Starting Bitwise Matrix Initialization...");
     
-    // Load a 500-bar oracle dataset to test the Generator
-    let data = RawData::from_csv("tb_bench/oracles/oracle_bull.csv").expect("Failed to load dataset");
+    let raw_data = RawData {
+        close, open, high, low, volume,
+    };
     
-    // Generate native float arrays
-    let sma_10 = tb_math::indicators::sma(&data.close, 10);
-    let sma_50 = tb_math::indicators::sma(&data.close, 50);
-    let _rsi_14 = tb_math::indicators::rsi(&data.close, 14);
-    let _macd = tb_math::indicators::macd(&data.close, 12, 26, 9);
-    let bb = tb_math::indicators::bollinger_bands(&data.close, 20, 2.0);
-
-    // Box them into BaseArrays with Semantic Types and AST Expressions
-    let mut base_arrays = vec![
-        BaseArray { name: "SMA_10".to_string(), semantic_type: SemanticType::Price, ast: tb_core::ast::Expr::Sma { source: Box::new(tb_core::ast::Expr::Close), period: 10 }, data: sma_10 },
-        BaseArray { name: "SMA_50".to_string(), semantic_type: SemanticType::Price, ast: tb_core::ast::Expr::Sma { source: Box::new(tb_core::ast::Expr::Close), period: 50 }, data: sma_50 },
-    ];
-    base_arrays.push(BaseArray { name: "RSI_14".to_string(), semantic_type: SemanticType::Oscillator, ast: tb_core::ast::Expr::Rsi { source: Box::new(tb_core::ast::Expr::Close), period: 14 }, data: tb_math::indicators::rsi(&data.close, 14) });
-    let (macd_line, _sig_line, _hist_line) = tb_math::indicators::macd(&data.close, 12, 26, 9);
-    base_arrays.push(BaseArray { name: "MACD".to_string(), semantic_type: SemanticType::Momentum, ast: tb_core::ast::Expr::MacdLine { source: Box::new(tb_core::ast::Expr::Close), fast: 12, slow: 26 }, data: macd_line });
-    base_arrays.push(BaseArray { name: "BB_Upper".to_string(), semantic_type: SemanticType::Price, ast: tb_core::ast::Expr::Close, data: bb.0 });
-    base_arrays.push(BaseArray { name: "BB_Lower".to_string(), semantic_type: SemanticType::Price, ast: tb_core::ast::Expr::Close, data: bb.1 });
-
-    // Procedurally generate the Grid
-    let mut grid = ConditionGrid::new();
-    grid.generate(&base_arrays);
+    let periods = vec![5, 10, 14, 20, 50, 100, 200];
     
-    // Print a few sample conditions
-    info!("Sample Conditions Generated:");
-    for i in 0..std::cmp::min(5, grid.conditions.len()) {
-        info!("  - [{}] Hash: {}", grid.conditions[i].name, grid.conditions[i].id);
+    println!("Building EngineCache...");
+    let precompute_start = std::time::Instant::now();
+    let cache = Arc::new(EngineCache::new(&raw_data, &periods));
+    println!("EngineCache Built in {:?}", precompute_start.elapsed());
+    
+    // 1. Setup AST Generator
+    let periods = [7, 14, 21, 50, 100, 200];
+    let indicators = tb_indicators::templates::default_blueprints();
+    let ast_gen = AstGenerator::new(5, &periods, &indicators); // max_depth 5
+    let pop_size = 5000;
+    
+    println!("Building TargetOutcomes...");
+    let targets_start = std::time::Instant::now();
+    let targets = TargetOutcomes::generate_advanced_stop(
+        &raw_data, 
+        &tb_core::stops::StopType::FixedBarHold { bars: 5 },
+        &tb_core::stops::TakeProfit::None,
+        None,
+        0.0
+    );
+    let targets = Arc::new(targets);
+    println!("TargetOutcomes Built in {:?}", targets_start.elapsed());
+    
+    let engine = Arc::new(BitwiseEngine::new(cache, targets));
+    
+    let archive = tb_bitwise::archive::MapArchive::new(
+        tb_core::archive::ArchiveTrait::WinRate,
+        tb_core::archive::ArchiveTrait::MarketExposure,
+        tb_core::fitness::FitnessFunction::ProfitFactor,
+        20,
+        data_len as u32,
+        10,
+        1,
+        100.0,
+        0.0
+    );
+    
+    let mut ga = GeneticAlgorithm::new(
+        engine.clone(),
+        pop_size,
+        1, // We just want to run 1 generation
+        TradeDirection::Long,
+        archive,
+        0.0, // Benchmark percentile
+        ast_gen
+    );
+    
+    println!("Running GA Benchmark (1 Generation, Pop: {})...", pop_size);
+    let start = std::time::Instant::now();
+    ga.run(|_, _| {});
+    let gen_time_ms = start.elapsed().as_millis() as u64;
+    println!("Benchmark completed in {} ms", gen_time_ms);
+    
+    let hits = engine.cache_hits.load(std::sync::atomic::Ordering::Relaxed);
+    let misses = engine.cache_misses.load(std::sync::atomic::Ordering::Relaxed);
+    let total = hits + misses;
+    let hit_rate = if total > 0 { (hits as f64 / total as f64) * 100.0 } else { 0.0 };
+    
+    println!("JIT Telemetry: {} Hits, {} Misses (Hit Rate: {:.2}%)", hits, misses, hit_rate);
+    
+    // Dump JSON Telemetry
+    let mut nodes_map = HashMap::new();
+    for entry in engine.telemetry.iter() {
+        let name = entry.key().to_string();
+        let record = entry.value();
+        let calls = record.calls.load(std::sync::atomic::Ordering::Relaxed);
+        let time_us = record.total_time_us.load(std::sync::atomic::Ordering::Relaxed);
+        let time_ms = time_us as f64 / 1000.0;
+        
+        nodes_map.insert(name, NodeTelemetry { calls, total_time_ms: time_ms });
     }
-
-    // Run the Sparsity Culler (Remove rules triggering <1% or >95% of the time)
-    grid.cull_sparsity(data.close.len(), 0.01, 0.95);
     
-    // Run the Correlation Culler (Remove anything 95% identical)
-    grid.cull_correlated(0.95);
-
-    // Generate Target Outcomes (Fixed 5-bar hold)
-    let targets = TargetOutcomes::generate_fixed_hold(&data, 5);
-
-    // Initialize the SIMD Engine
-    let arc_grid = std::sync::Arc::new(grid);
-    let arc_targets = std::sync::Arc::new(targets);
-    let engine = std::sync::Arc::new(BitwiseEngine::new(arc_grid.clone(), arc_targets));
-
-    // Run the MAP-Elites Genetic Algorithm
-    let archive = tb_bitwise::archive::MapArchive::new(tb_core::archive::ArchiveTrait::MarketExposure, tb_core::archive::ArchiveTrait::WinRate, tb_core::fitness::FitnessFunction::PnlOverDd, 10, data.close.len() as u32, 5, 10, 0.02);
-    let mut ga = GeneticAlgorithm::new(engine, 5_000, 100, TradeDirection::Long, archive, 0.95);
+    let dump = TelemetryDump {
+        total_cache_hits: hits,
+        total_cache_misses: misses,
+        hit_rate_percent: hit_rate,
+        generation_time_ms: gen_time_ms,
+        pipeline_evaluating_ms: ga.time_evaluating_ms,
+        pipeline_archiving_ms: ga.time_archiving_ms,
+        pipeline_breeding_ms: ga.time_breeding_ms,
+        pipeline_deduping_ms: ga.time_deduping_ms,
+        nodes: nodes_map,
+    };
     
-    let start_eval = Instant::now();
-    ga.run();
-    let eval_time = start_eval.elapsed();
-    
-    // Extract Final Kings
-    let final_kings: Vec<_> = ga.archive.grid.iter().flat_map(|col| col.iter()).filter_map(|c| c.clone()).collect();
-    
-    info!("MAP-Elites Evolution completed in {:?}", eval_time);
-    info!("Found {} unique Elite Strategies out of {} possible grid buckets.", final_kings.len(), 12);
-    
-    for (i, king) in final_kings.iter().enumerate() {
-        info!("  King {}: Trades = {}, Win Rate = {:.2}%, Rules = {:?}", i, king.metrics.total_trades, king.metrics.win_rate, king.conditions);
-        if let Some(sketch) = translate_to_sketch(king, &arc_grid, TradeDirection::Long) {
-            let json = serde_json::to_string_pretty(&sketch).unwrap();
-            println!("--- WINNING STRATEGY AST ---\n{}\n----------------------------", json);
-        }
-    }
-
-    // Output final JSON profiler report
-    println!("--- PROFILER REPORT ---");
-    let report = format!(r#"{{
-  "engine": "bitwise",
-  "total_time_ms": {},
-  "peak_ram_mb": 0.0,
-  "correlation_culls": {},
-  "sparsity_culls": 0,
-  "elites_found": {}
-}}"#, eval_time.as_millis(), arc_grid.conditions.len(), final_kings.len());
-    println!("{}", report);
-    println!("-----------------------");
-}
-
-#[derive(serde::Serialize)]
-struct ProfilerReport {
-    engine: String,
-    strategies_per_second: f64,
-    peak_ram_mb: f64,
-    correlation_culls: usize,
-    sparsity_culls: usize,
+    let json = serde_json::to_string_pretty(&dump).unwrap();
+    std::fs::write("benchmark_results.json", json).unwrap();
+    println!("Wrote granular node execution telemetry to benchmark_results.json");
 }

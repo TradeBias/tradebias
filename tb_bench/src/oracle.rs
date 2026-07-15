@@ -78,7 +78,7 @@ fn verify_flat_oracle(engine_name: &str) -> Result<()> {
 }
 
 fn verify_whipsaw_oracle(engine_name: &str) -> Result<()> {
-    let data = RawData::from_csv("tb_bench/oracles/oracle_whipsaw.csv")?;
+    let _data = RawData::from_csv("tb_bench/oracles/oracle_whipsaw.csv")?;
     
     // Alternating aggressive up and down bars. 
     // This will eventually test exact Slippage and Stop Loss trigger mechanics.

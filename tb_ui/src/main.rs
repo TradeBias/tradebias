@@ -6,6 +6,7 @@ mod components;
 mod tabs;
 mod app;
 mod export;
+pub mod node_graph;
 
 use app::TradingApp;
 use polars::prelude::*;

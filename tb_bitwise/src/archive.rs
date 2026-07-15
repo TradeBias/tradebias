@@ -9,11 +9,12 @@ pub struct MapArchive {
     pub max_candles: u32,
     pub max_complexity: usize,
     pub min_trades: usize,
+    pub max_exposure: f64,
     pub occam_penalty_pct: f64,
 }
 
 impl MapArchive {
-    pub fn new(x_trait: tb_core::archive::ArchiveTrait, y_trait: tb_core::archive::ArchiveTrait, fitness_metric: tb_core::fitness::FitnessFunction, grid_size: usize, max_candles: u32, max_complexity: usize, min_trades: usize, occam_penalty_pct: f64) -> Self {
+    pub fn new(x_trait: tb_core::archive::ArchiveTrait, y_trait: tb_core::archive::ArchiveTrait, fitness_metric: tb_core::fitness::FitnessFunction, grid_size: usize, max_candles: u32, max_complexity: usize, min_trades: usize, max_exposure: f64, occam_penalty_pct: f64) -> Self {
         Self {
             grid: vec![vec![None; grid_size]; grid_size],
             grid_size,
@@ -23,6 +24,7 @@ impl MapArchive {
             max_candles,
             max_complexity,
             min_trades,
+            max_exposure,
             occam_penalty_pct,
         }
     }
@@ -53,6 +55,7 @@ impl MapArchive {
 
     pub fn submit(&mut self, genome: Genome) -> bool {
         if genome.metrics.total_trades < (self.min_trades as u32) { return false; }
+        if genome.metrics.exposure_pct > (self.max_exposure * 100.0) { return false; }
         
         let x = self.get_bin(&self.x_trait, &genome);
         let y = self.get_bin(&self.y_trait, &genome);

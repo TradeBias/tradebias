@@ -16,6 +16,7 @@ rfd = "0.17.2"
 tb_core = { version = "0.1.0", path = "../tb_core" }
 tb_data = { version = "0.1.0", path = "../tb_data" }
 tb_bitwise = { version = "0.1.0", path = "../tb_bitwise" }
+tb_indicators = { version = "0.1.0", path = "../tb_indicators" }
 tb_simulator = { version = "0.1.0", path = "../tb_simulator" }
 tracing = "0.1.44"
 tracing-subscriber = "0.3.23"

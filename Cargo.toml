@@ -2,7 +2,7 @@
 resolver = "2"
 members = ["tb_bench", "tb_bitwise",
     "tb_core",
-    "tb_data",
+    "tb_data", "tb_indicators",
     "tb_math",
     "tb_simulator",
     "tb_ui",

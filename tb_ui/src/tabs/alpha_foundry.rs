@@ -31,10 +31,11 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
         ui.add_space(8.0);
         ui.add_space(8.0);
         
-        egui::Grid::new("alpha_settings_grid")
-            .num_columns(2)
-            .spacing([40.0, 12.0])
-            .show(ui, |ui| {
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            egui::Grid::new("alpha_settings_grid")
+                .num_columns(2)
+                .spacing([40.0, 12.0])
+                .show(ui, |ui| {
                 // --- Starting Equity ---
                 ui.label("Starting Equity: $");
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -264,15 +265,45 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                 });
                 ui.end_row();
 
+                ui.label("Transaction Cost:")
+                    .on_hover_text("Combined Slippage & Commission points per trade.");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add(egui::Slider::new(&mut app.config.phase1.slippage_penalty, 0.0..=0.0100).step_by(0.0001).text("pts"));
+                });
+                ui.end_row();
+
                 ui.label("Min Trade Count:");
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.add(egui::Slider::new(&mut app.config.phase1.min_trades, 1..=500));
                 });
                 ui.end_row();
 
+                ui.label("Max Exposure:");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add(egui::Slider::new(&mut app.config.phase1.max_exposure, 0.01..=1.0).text("%").custom_formatter(|n, _| format!("{:.0}%", n * 100.0)));
+                });
+                ui.end_row();
+
                 ui.label("Dumb Luck Filter:");
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.add(egui::Slider::new(&mut app.config.phase1.random_benchmark_percentile, 0.5..=0.99).text("PCTL").custom_formatter(|n, _| format!("{:.0}th", n * 100.0)));
+                });
+                ui.end_row();
+
+                // --- AST Complexity ---
+                ui.label(egui::RichText::new("Genome Complexity").strong().size(14.0));
+                ui.label("");
+                ui.end_row();
+
+                ui.label("Max Trigger Rules:");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add(egui::Slider::new(&mut app.config.phase1.max_num_rules, 1..=20));
+                });
+                ui.end_row();
+
+                ui.label("Max AST Tree Depth:");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add(egui::Slider::new(&mut app.config.phase1.max_ast_depth, 1..=10));
                 });
                 ui.end_row();
 
@@ -325,12 +356,10 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                 
                 // Spawn Phase 1 Evolutionary Engine (Uses In-Sample Data)
                 std::thread::spawn(move || {
-                    use tb_bitwise::precompute::{ConditionGrid, BaseArray, SemanticType};
                     use std::collections::HashSet;
                     use tb_bitwise::targets::TargetOutcomes;
                     use tb_bitwise::engine::BitwiseEngine;
                     use tb_bitwise::ga::GeneticAlgorithm;
-                    use tb_bitwise::translator::translate_to_sketch;
                     use tb_core::ast::EliteStrategy;
 
                     // 1. Materialize Polars DataFrame to Vec<f64>
@@ -360,43 +389,18 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                         status_msg: Some("Building strategy components...".to_string())
                     });
 
-                    // 2. Dynamically Generate Base Arrays based on config
-                    let price_data = tb_bitwise::registry::PriceData {
-                        open: &opens,
-                        high: &highs,
-                        low: &lows,
-                        close: &closes,
-                        volume: &volumes,
-                    };
-                    let base_arrays = tb_bitwise::registry::build_base_arrays(&phase1_config.permitted_indicators, &price_data);
-
-                    // 3. Generate Grid and cull
-                    let mut grid = ConditionGrid::new();
-                    grid.generate(&base_arrays);
-                    
-                    let _ = ui_tx.send(crate::state::GenerationMetrics {
-                        generation: 0, elapsed_seconds: 0.0, total_generated: 0, total_discarded: 0, strategies: vec![],
-                        status_msg: Some("Filtering low-quality signals...".to_string())
-                    });
-                    grid.cull_sparsity(closes.len(), 0.01, 0.95);
-                    
-                    let _ = ui_tx.send(crate::state::GenerationMetrics {
-                        generation: 0, elapsed_seconds: 0.0, total_generated: 0, total_discarded: 0, strategies: vec![],
-                        status_msg: Some("Removing redundant signals...".to_string())
-                    });
-                    grid.cull_correlated(0.95);
-                    grid.cull_sparsity(closes.len(), 0.01, 0.95);
-                    grid.cull_correlated(0.95);
-                    let arc_grid = std::sync::Arc::new(grid);
+                    // 2. Precompute Engine Cache
+                    let raw_data = tb_bitwise::data::RawData::from_arrays(opens.clone(), highs.clone(), lows.clone(), closes.clone(), volumes.clone()).unwrap();
+                    let cache = tb_bitwise::precompute::EngineCache::new(&raw_data, &[7, 14, 21, 50, 100, 200]);
+                    let arc_cache = std::sync::Arc::new(cache);
 
                     // 4. Generate Target Outcomes (Advanced Stops)
-                    let raw_data = tb_bitwise::data::RawData::from_arrays(opens.clone(), highs.clone(), lows.clone(), closes.clone(), volumes.clone()).unwrap();
-                    
                     let atr_data = match (&phase1_config.stop_type, &phase1_config.take_profit) {
                         (tb_core::stops::StopType::StandardStop { calc: tb_core::stops::StopCalculation::Atr { .. } }, _) |
                         (tb_core::stops::StopType::TrailingStop { calc: tb_core::stops::StopCalculation::Atr { .. } }, _) |
                         (_, tb_core::stops::TakeProfit::Atr { .. }) => {
-                            Some(tb_math::indicators::atr(&highs, &lows, &closes, 14))
+                            let tr = tb_math::primitives::true_range(&highs, &lows, &closes);
+                            Some(tb_math::primitives::rma(&tr, 14))
                         }
                         _ => None,
                     };
@@ -405,15 +409,16 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                         &raw_data, 
                         &phase1_config.stop_type, 
                         &phase1_config.take_profit,
-                        atr_data.as_deref()
+                        atr_data.as_deref(),
+                        phase1_config.slippage_penalty
                     );
                     let arc_targets = std::sync::Arc::new(targets);
 
                     // 5. Run the Genetic Algorithm
-                    let engine = std::sync::Arc::new(BitwiseEngine::new(arc_grid.clone(), arc_targets));
-                    let max_complexity = 5; // Hardcoded fallback max for now based on AST max
-                    let archive = tb_bitwise::archive::MapArchive::new(phase1_config.map_x.clone(), phase1_config.map_y.clone(), phase1_config.fitness.clone(), phase1_config.grid_size, closes.len() as u32, max_complexity, phase1_config.min_trades, phase1_config.occam_penalty_pct);
-                    let mut ga = GeneticAlgorithm::new(engine.clone(), 5_000, 50, phase1_config.trade_direction.clone(), archive, phase1_config.random_benchmark_percentile); // 50 Generations
+                    let engine = std::sync::Arc::new(BitwiseEngine::new(arc_cache, arc_targets));
+                    let ast_gen = tb_bitwise::ast_gen::AstGenerator::new(phase1_config.max_ast_depth, &[7, 14, 21, 50, 100, 200], &phase1_config.permitted_indicators);
+                    let archive = tb_bitwise::archive::MapArchive::new(phase1_config.map_x.clone(), phase1_config.map_y.clone(), phase1_config.fitness.clone(), phase1_config.grid_size, closes.len() as u32, phase1_config.max_num_rules, phase1_config.min_trades, phase1_config.max_exposure, phase1_config.occam_penalty_pct);
+                    let mut ga = GeneticAlgorithm::new(engine.clone(), 5_000, 50, phase1_config.trade_direction.clone(), archive, phase1_config.random_benchmark_percentile, ast_gen); // 50 Generations
                     
                     let _ = ui_tx.send(crate::state::GenerationMetrics {
                         generation: 0, elapsed_seconds: 0.0, total_generated: 0, total_discarded: 0, strategies: vec![],
@@ -421,7 +426,18 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                     });
 
                     let start_eval = std::time::Instant::now();
-                    ga.run();
+                    let ui_tx_clone = ui_tx.clone();
+                    let pop_size = 5_000;
+                    ga.run(move |gen_idx, elapsed_secs| {
+                        let _ = ui_tx_clone.send(crate::state::GenerationMetrics {
+                            generation: gen_idx,
+                            elapsed_seconds: elapsed_secs,
+                            total_generated: gen_idx * pop_size,
+                            total_discarded: 0,
+                            strategies: vec![],
+                            status_msg: Some("Running Genetic Algorithm...".to_string()),
+                        });
+                    });
                     let elapsed = start_eval.elapsed();
 
                     // 6. Extract Kings and send to UI
@@ -429,7 +445,7 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                     let mut elite_strategies = Vec::new();
 
                     for king in final_kings {
-                        if let Some(sketch) = translate_to_sketch(&king, &arc_grid, phase1_config.trade_direction.clone()) {
+                        if let Some(sketch) = tb_bitwise::translator::translate_to_sketch(&king, phase1_config.trade_direction.clone()) {
                             let elite = EliteStrategy {
                                 sketch,
                                 fitness: king.metrics.win_rate,
@@ -451,7 +467,8 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                                 max_consecutive_losses: king.metrics.max_consecutive_losses,
                                 exposure_pct: king.metrics.exposure_pct,
                                 indicator_count: king.conditions.len() as u8,
-                                condition_indexes: king.conditions.clone(),
+                                num_trades: king.metrics.total_trades,
+                                conditions: king.conditions.clone(),
                             };
                             elite_strategies.push(elite.clone());
                             let _ = elite_tx.send(elite); // Send to Simulator
@@ -465,7 +482,7 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                     let _ = ui_tx.send(crate::state::GenerationMetrics {
                         generation: 50,
                         elapsed_seconds: elapsed.as_secs_f64(),
-                        total_generated: 250_000, // 5k * 50
+                        total_generated: 250_000,
                         total_discarded: 0,
                         strategies: elite_strategies,
                         status_msg: None,
@@ -475,23 +492,42 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                 println!("Cannot start evolution: No data loaded in Sandbox.");
             }
         }
+        }); // End ScrollArea
     });
 
     if let Some(metrics) = &app.latest_metrics {
+        let is_running = app.foundry_rx.is_some();
+        let is_precomputing = metrics.status_msg.as_ref().map_or(false, |m| m.contains("Precomputing"));
+        let current_gen = metrics.generation;
+
         egui::TopBottomPanel::bottom("foundry_stats_panel").show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                let speed = if metrics.elapsed_seconds > 0.0 {
-                    (metrics.total_generated as f64 / metrics.elapsed_seconds) as u32
-                } else {
-                    0
-                };
-                ui.label(egui::RichText::new(format!("⚡ {} strategies/sec", speed)).strong());
-                ui.separator();
-                ui.label(format!("Total Generated: {}", metrics.total_generated));
-                ui.separator();
-                ui.label(format!("Total Discarded: {}", metrics.total_discarded));
-                ui.separator();
-                ui.label(format!("Time Elapsed: {:.1}s", metrics.elapsed_seconds));
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    let speed = if metrics.elapsed_seconds > 0.0 {
+                        (metrics.total_generated as f64 / metrics.elapsed_seconds) as u32
+                    } else {
+                        0
+                    };
+                    ui.label(egui::RichText::new(format!("⚡ {} strategies/sec", speed)).strong());
+                    ui.separator();
+                    ui.label(format!("Total Generated: {}", metrics.total_generated));
+                    ui.separator();
+                    ui.label(format!("Total Discarded: {}", metrics.total_discarded));
+                    ui.separator();
+                    ui.label(format!("Time Elapsed: {:.1}s", metrics.elapsed_seconds));
+                });
+
+                if is_running && !is_precomputing {
+                    ui.add_space(4.0);
+                    let progress = current_gen as f32 / 50.0;
+                    
+                    ui.add(
+                        egui::ProgressBar::new(progress)
+                            .text(format!("Generation {} / 50", current_gen))
+                            .fill(egui::Color32::from_gray(128))
+                            .animate(true)
+                    );
+                }
             });
         });
     }
@@ -530,10 +566,10 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                                 let strategy = &metrics.strategies[idx];
                                 let report = tb_bitwise::robustness::generate_report(
                                     engine,
-                                    &strategy.condition_indexes,
+                                    &strategy.conditions,
                                     &app.config.phase1.trade_direction,
                                     app.robustness_noise_pct / 100.0,
-                                    app.robustness_top_n_drop,
+                                    app.robustness_top_n_drop as f64 / 100.0,
                                 );
                                 app.robustness_report = Some(report);
                                 app.show_robustness_modal = true;
@@ -544,22 +580,25 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
             });
             ui.add_space(16.0);
             
-            // Leaderboard Only
-            if app.foundry_rx.is_some() {
+            let is_running = app.foundry_rx.is_some();
+            let mut is_precomputing = false;
+            if let Some(metrics) = &app.latest_metrics {
+                if let Some(msg) = &metrics.status_msg {
+                    if msg.contains("Building") || msg.contains("Precomputing") {
+                        is_precomputing = true;
+                    }
+                }
+            }
+
+            if is_running && is_precomputing {
                 ui.add_space(80.0);
                 ui.vertical_centered(|ui| {
                     ui.spinner();
                     ui.add_space(20.0);
-                    let mut display_text = "Running Genetic Algorithm...".to_string();
-                    if let Some(metrics) = &app.latest_metrics {
-                        if let Some(msg) = &metrics.status_msg {
-                            display_text = msg.clone();
-                        }
-                    }
-                    ui.label(egui::RichText::new(display_text).size(16.0));
+                    ui.label(egui::RichText::new("Precomputing Indicators...").size(16.0));
                 });
             } else {
-                egui::ScrollArea::vertical().show(ui, |ui| {
+                egui::ScrollArea::both().show(ui, |ui| {
                 egui::Grid::new("leaderboard_grid")
                     .striped(true)
                     .spacing([40.0, 8.0])
@@ -567,6 +606,7 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                         // Header
                         ui.label(egui::RichText::new("AST Structure (Logic)").strong());
                         ui.label(egui::RichText::new("Total PnL").strong().color(egui::Color32::LIGHT_GREEN));
+                        ui.label(egui::RichText::new("Trades").strong());
                         ui.label(egui::RichText::new("Avg Trade").strong()).on_hover_text("Expected $ per trade");
                         ui.label(egui::RichText::new("Win %").strong());
                         ui.label(egui::RichText::new("Exposure (%)").strong());
@@ -588,15 +628,38 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                         // Rows
                         let filtered_strategies: Vec<_> = metrics.strategies.iter().filter(|s| {
                             s.pnl >= app.min_pnl_filter && s.pnl <= app.max_pnl_filter &&
-                            s.fitness >= app.min_win_rate_filter && s.fitness <= app.max_win_rate_filter
-                        }).collect();
+                            s.fitness >= app.min_win_rate_filter && s.fitness <= app.max_win_rate_filter &&
+                            s.corr_coef >= app.min_corr_coef_filter && 
+                            s.max_consecutive_losses <= app.max_cons_loss_filter as u32
+                        })
+                        .collect();
                         
                         for (idx, strategy) in filtered_strategies.iter().enumerate() {
                             // 1. AST Structure
                             let is_selected = app.selected_strategy_idx == Some(idx);
-                            if ui.selectable_label(is_selected, strategy.sketch.to_string()).clicked() {
+                            let full_ast = format!("{}", strategy.sketch.entry);
+                            let mut display_ast = full_ast.clone();
+                            if display_ast.len() > 45 {
+                                display_ast.truncate(42);
+                                display_ast.push_str("...");
+                            }
+                            
+                            if ui.selectable_label(is_selected, display_ast).on_hover_text(full_ast).clicked() {
                                 app.selected_strategy_idx = Some(idx);
                                 app.robustness_disabled_conditions.clear();
+                                
+                                if app.show_robustness_modal {
+                                    if let Some(engine) = &app.bitwise_engine {
+                                        let report = tb_bitwise::robustness::generate_report(
+                                            engine,
+                                            &strategy.conditions,
+                                            &app.config.phase1.trade_direction,
+                                            app.robustness_noise_pct / 100.0,
+                                            app.robustness_top_n_drop as f64 / 100.0,
+                                        );
+                                        app.robustness_report = Some(report);
+                                    }
+                                }
                             }
                             
                             // 2. Total PnL
@@ -605,6 +668,9 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                                 format!("{:.2}", strategy.pnl)
                             );
                             
+                            // 2.5. Trades
+                            ui.label(format!("{}", strategy.num_trades));
+
                             // 3. Avg Trade
                             ui.label(format!("{:.2}", strategy.avg_trade));
                             
@@ -651,7 +717,7 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                             ui.end_row();
                         }
                     });
-                });
+                }); // Scroll area end
             }
         } else {
             ui.label("Evolution metrics and generated strategies will appear here.");
@@ -675,8 +741,9 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                 
                 ui.horizontal(|ui| {
                     if ui.button("Enable All").clicked() {
-                        let all_indicators = tb_bitwise::registry::get_available_indicators();
-                        app.config.phase1.permitted_indicators = all_indicators.iter().map(|s| s.name.to_string()).collect();
+                        let mut all = tb_indicators::templates::default_blueprints();
+                        all.extend(app.forge_blueprints.clone());
+                        app.config.phase1.permitted_indicators = all;
                     }
                     if ui.button("Disable All").clicked() {
                         app.config.phase1.permitted_indicators.clear();
@@ -685,34 +752,47 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                 ui.add_space(8.0);
                 
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    let all_indicators = tb_bitwise::registry::get_available_indicators();
+                    let grouped_indicators = vec![
+                        ("Momentum", vec!["SMA", "EMA", "RSI"]),
+                        ("Trend", vec!["MACD"]),
+                        ("Volatility", vec!["ATR", "BOLL"]),
+                    ];
                     
-                    // Group by category
-                    let mut categories: std::collections::HashMap<&str, Vec<&str>> = std::collections::HashMap::new();
-                    for spec in &all_indicators {
-                        categories.entry(spec.category).or_default().push(spec.name);
+                    let all_blueprints = tb_indicators::templates::default_blueprints();
+                    
+                    for (cat, names) in grouped_indicators {
+                        ui.label(egui::RichText::new(cat).strong());
+                        ui.add_space(4.0);
+                        for ind in names {
+                            let mut is_enabled = app.config.phase1.permitted_indicators.iter().any(|b| b.name == ind);
+                            if ui.checkbox(&mut is_enabled, ind).changed() {
+                                if is_enabled {
+                                    if let Some(blueprint) = all_blueprints.iter().find(|b| b.name == ind) {
+                                        app.config.phase1.permitted_indicators.push(blueprint.clone());
+                                    }
+                                } else {
+                                    app.config.phase1.permitted_indicators.retain(|b| b.name != ind);
+                                }
+                            }
+                        }
+                        ui.add_space(12.0);
                     }
                     
-                    let mut sorted_cats: Vec<_> = categories.keys().cloned().collect();
-                    sorted_cats.sort();
-                    
-                    for cat in sorted_cats {
-                        ui.label(egui::RichText::new(cat).strong());
-                        ui.add_space(2.0);
-                        ui.indent(cat, |ui| {
-                                if let Some(names) = categories.get(cat) {
-                                    for &ind in names {
-                                        let mut is_enabled = app.config.phase1.permitted_indicators.contains(&ind.to_string());
-                                        if ui.checkbox(&mut is_enabled, ind).changed() {
-                                            if is_enabled {
-                                                app.config.phase1.permitted_indicators.push(ind.to_string());
-                                            } else {
-                                                app.config.phase1.permitted_indicators.retain(|x| x != ind);
-                                            }
-                                        }
-                                    }
+                    if !app.forge_blueprints.is_empty() {
+                        ui.label(egui::RichText::new("My Custom Indicators").strong().color(egui::Color32::LIGHT_BLUE));
+                        ui.add_space(4.0);
+                        for blueprint in &app.forge_blueprints {
+                            let ind = &blueprint.name;
+                            let mut is_enabled = app.config.phase1.permitted_indicators.iter().any(|b| &b.name == ind);
+                            if ui.checkbox(&mut is_enabled, ind).changed() {
+                                if is_enabled {
+                                    app.config.phase1.permitted_indicators.push(blueprint.clone());
+                                } else {
+                                    app.config.phase1.permitted_indicators.retain(|b| &b.name != ind);
                                 }
-                            });
+                            }
+                        }
+                        ui.add_space(12.0);
                     }
                 });
             });
@@ -747,6 +827,20 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                             ui.add(egui::DragValue::new(&mut app.min_win_rate_filter).speed(1.0).clamp_range(0.0..=100.0));
                             ui.label("Max:");
                             ui.add(egui::DragValue::new(&mut app.max_win_rate_filter).speed(1.0).clamp_range(0.0..=100.0));
+                        });
+                        ui.end_row();
+
+                        ui.label("R-Squared (Corr Coef):");
+                        ui.horizontal(|ui| {
+                            ui.label("Min:");
+                            ui.add(egui::DragValue::new(&mut app.min_corr_coef_filter).speed(0.01).clamp_range(-1.0..=1.0));
+                        });
+                        ui.end_row();
+
+                        ui.label("Max Consecutive Losses:");
+                        ui.horizontal(|ui| {
+                            ui.label("Max:");
+                            ui.add(egui::DragValue::new(&mut app.max_cons_loss_filter).speed(1));
                         });
                         ui.end_row();
                     });
