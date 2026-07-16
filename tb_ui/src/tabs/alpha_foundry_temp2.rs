@@ -32,8 +32,7 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context, outer_ui: &mut egui::Ui
     let top_frame = egui::Frame::default()
         .fill(crate::theme::WINDOW_FILL)
         .inner_margin(12.0)
-        .outer_margin(8.0)
-        .corner_radius(12)
+        .corner_radius(8)
         .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(51, 51, 51)));
 
     egui::TopBottomPanel::top("alpha_action_bar")
@@ -53,19 +52,22 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context, outer_ui: &mut egui::Ui
             });
         });
         
-    // Conditional Settings Drawer
+    outer_ui.add_space(8.0);
+        
+    let mut tree = std::mem::replace(&mut app.foundry_tree, egui_tiles::Tree::empty("tmp"));
+    let mut behavior = crate::tabs::foundry_layout::FoundryBehavior { app };
+    tree.ui(&mut behavior, outer_ui);
+    app.foundry_tree = tree;
+}
+
+pub fn render_settings(app: &mut crate::state::TradingApp, ui: &mut egui::Ui, start_clicked: &mut bool) {
     if app.show_alpha_settings {
-        let drawer_frame = egui::Frame::default()
-            .fill(crate::theme::WINDOW_FILL)
-            .inner_margin(16.0)
-            .outer_margin(8.0)
-            .corner_radius(12)
-            .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(51, 51, 51)));
-        egui::SidePanel::left("alpha_settings_drawer")
-            .resizable(true)
-            .default_width(350.0)
-            .frame(drawer_frame)
-            .show_inside(outer_ui, |ui| {
+        let drawer_frame = egui::Frame::default().fill(crate::theme::WINDOW_FILL).inner_margin(16.0).corner_radius(8);
+        if false {
+            
+            
+            
+                egui::ScrollArea::vertical().show(ui, |ui| {
                 ui.heading("Configuration");
                 ui.add_space(12.0);
                 egui::ScrollArea::vertical().show(ui, |ui| {
@@ -336,7 +338,6 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context, outer_ui: &mut egui::Ui
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.add(egui::Slider::new(&mut app.config.phase1.max_num_rules, 1..=20));
                 });
-                ui.end_row();
 
                 ui.label("Max AST Tree Depth:");
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -363,7 +364,7 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context, outer_ui: &mut egui::Ui
             }); // End SidePanel Drawer
     }
 
-    if start_clicked {
+    if *start_clicked {
             if let Some(loaded_data) = &app.loaded_data {
                 let (ui_tx, ui_rx) = crossbeam_channel::unbounded();
                 app.foundry_rx = Some(ui_rx);
@@ -508,7 +509,9 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context, outer_ui: &mut egui::Ui
                                 num_trades: king.metrics.total_trades,
                                 conditions: king.conditions.clone(),
                             };
-                            elite_strategies.push(elite.clone());
+}
+
+pub fn render_stats(app: &mut crate::state::TradingApp, ui: &mut egui::Ui) {
                             let _ = elite_tx.send(elite); // Send to Simulator
                         }
                     }
@@ -537,14 +540,7 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context, outer_ui: &mut egui::Ui
         let is_precomputing = metrics.status_msg.as_ref().map_or(false, |m| m.contains("Precomputing"));
         let current_gen = metrics.generation;
 
-        let stats_frame = egui::Frame::default()
-            .fill(crate::theme::WINDOW_FILL)
-            .inner_margin(12.0)
-            .outer_margin(8.0)
-            .corner_radius(12)
-            .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(51, 51, 51)));
-            
-        egui::TopBottomPanel::bottom("foundry_stats_panel").frame(stats_frame).show_inside(outer_ui, |ui| {
+        if true {
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
                     let speed = if metrics.elapsed_seconds > 0.0 {
@@ -576,34 +572,11 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context, outer_ui: &mut egui::Ui
         });
     }
 
-    let is_wide = ctx.screen_rect().width() > 1200.0;
-    
-    if is_wide {
-        app.show_robustness_modal = false;
-        
-        let card_frame = egui::Frame::default()
-            .fill(crate::theme::WINDOW_FILL)
-            .inner_margin(16.0)
-            .outer_margin(8.0)
-            .corner_radius(12)
-            .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(51, 51, 51)));
-            
-        egui::SidePanel::right("robustness_panel")
-            .resizable(true)
-            .default_width(400.0)
-            .frame(card_frame)
-            .show_inside(outer_ui, |ui| {
-                crate::components::modals::render_robustness_ui(app, ui);
-            });
-    }
+}
 
-    let central_frame = egui::Frame::default()
-        .fill(ctx.style().visuals.panel_fill)
-        .inner_margin(16.0)
-        .outer_margin(8.0)
-        .corner_radius(12)
-        .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(51, 51, 51)));
-    egui::CentralPanel::default().frame(central_frame).show_inside(outer_ui, |ui| {
+pub fn render_leaderboard(app: &mut crate::state::TradingApp, ui: &mut egui::Ui) {
+    let central_frame = egui::Frame::default().fill(ctx.style().visuals.panel_fill).inner_margin(16.0);
+    if true {
         ui.heading("Alpha Foundry - Leaderboard (Phase 1)");
         
         if let Some(metrics) = &app.latest_metrics {
@@ -916,4 +889,5 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context, outer_ui: &mut egui::Ui
             });
         app.show_metric_filters_modal = is_open;
     }
+}
 }

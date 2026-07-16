@@ -37,3 +37,9 @@ When generating, modifying, or refactoring code for the `greenfield` multi-crate
 ## 9. Mandatory Pre-Implementation Briefing
 * **CRITICAL RULE:** Before executing *any* file edits, tool calls, or additions for a new feature, you MUST first reply to the user with a strict briefing that stipulates exactly which files will be created or modified. 
 * **Why:** This ensures the user has a chance to review the proposed architecture and file modularity plan before any code is actually generated or overwritten. Wait for their explicit approval if the architecture is complex.
+
+## 10. UI Aesthetics & Global Theming
+* **Rule:** All new UI components must conform to the "Modern Fintech" aesthetic established in `tb_ui::theme`. Do NOT use default `egui` styles or hardcode generic primary colors.
+* **Colors:** Use the established slate/indigo palette. Backgrounds should use `panel_fill` (`#121212`), `window_fill` (`#1E1E20`), and `RAIL_FILL` (`#1A1A1D`) for the left nav rail. Accents must use `ACCENT_INDIGO` (`#5E6AD2`). Error/Warn states must use `ERROR_RED` or `SUCCESS_GREEN`.
+* **Shapes:** Maintain rounded corners (4px for widgets, 8px for windows) rather than sharp edges.
+* **Modals:** Floating windows (`egui::Window`) must have a distinct `window_fill` and `window_stroke` border so they visually pop off the main dashboard.

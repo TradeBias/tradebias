@@ -4,8 +4,10 @@ use tb_core::ast::{Expr, IndicatorBlueprint, SemanticType};
 use crate::node_graph;
 use egui_plot::{Plot, Line, PlotPoints, Points};
 
-pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
-    egui::CentralPanel::default().show(ctx, |ui| {
+pub fn render(app: &mut TradingApp, ctx: &egui::Context, outer_ui: &mut egui::Ui) {
+    let central_frame = egui::Frame::default().fill(ctx.style().visuals.panel_fill)
+        .rounding(egui::CornerRadius { nw: 0, ne: 0, sw: 0, se: 8 });
+    egui::CentralPanel::default().frame(central_frame).show_inside(outer_ui, |ui| {
         ui.horizontal(|ui| {
             ui.heading("Blueprint Name:");
             ui.text_edit_singleline(&mut app.forge_active_blueprint_name);
@@ -13,11 +15,16 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
             ui.add_space(20.0);
             ui.label("Export Type:");
             egui::ComboBox::from_id_salt("forge_type_combo")
-                .selected_text(format!("{:?}", app.forge_active_type))
+                .selected_text(match app.forge_active_type {
+                    SemanticType::Price => "Overlay (Price-bound)",
+                    SemanticType::Oscillator => "Oscillator (Pane)",
+                    SemanticType::Volume => "Volume (Pane)",
+                    _ => "Auto"
+                })
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut app.forge_active_type, SemanticType::Price, "Price");
-                    ui.selectable_value(&mut app.forge_active_type, SemanticType::Ratio, "Ratio");
-                    ui.selectable_value(&mut app.forge_active_type, SemanticType::Volume, "Volume");
+                    ui.selectable_value(&mut app.forge_active_type, SemanticType::Price, "Overlay (Price-bound)");
+                    ui.selectable_value(&mut app.forge_active_type, SemanticType::Oscillator, "Oscillator (Pane)");
+                    ui.selectable_value(&mut app.forge_active_type, SemanticType::Volume, "Volume (Pane)");
                 });
                 
             ui.add_space(20.0);
@@ -180,26 +187,30 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
 
                     // Compile the graph dynamically to determine how to plot it
                     let compiled_ast = node_graph::compiler::compile_graph(&app.forge_node_graph, &app.forge_blueprints).ok();
-                    let current_ast_str = format!("{:?}", compiled_ast);
+                    let current_ast_str = format!("{:?}_{:?}", compiled_ast, app.forge_active_type);
                     
                     if app.forge_last_ast_str != current_ast_str {
                         app.forge_last_ast_str = current_ast_str.clone();
-                        app.main_chart.indicators.clear();
+                        app.forge_chart.indicators.clear();
                         
                         if let Some(ast) = &compiled_ast {
-                            let st = ast.semantic_type();
+                            let st = app.forge_active_type; // Preview respects user's manual export type
                             let mut unrolled = ast.clone();
                             tb_bitwise::engine::BitwiseEngine::unroll_macros(&mut unrolled);
+                            
+                            let scrubber_idx = app.scrubber_index;
                             
                             use egui_charts::studies::CustomIndicator;
                             use egui_charts::studies::IndicatorValue;
                             
                             if st == SemanticType::Boolean {
                                 let bitset = engine.eval_boolean(&unrolled);
-                                let mut ind = CustomIndicator::new("Trigger", Box::new(move |bars| {
+                                let ind = CustomIndicator::new("Trigger", Box::new(move |bars| {
                                     bars.iter().enumerate().map(|(i, _)| {
-                                        let block = i / 64;
-                                        let bit = i % 64;
+                                        let raw_i = i + scrubber_idx;
+                                        
+                                        let block = raw_i / 64;
+                                        let bit = raw_i % 64;
                                         if block < bitset.len() && (bitset[block] & (1 << bit)) != 0 {
                                             IndicatorValue::Single(bars[i].low - (bars[i].close * 0.005)) // Draw point slightly below low
                                         } else {
@@ -209,17 +220,19 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                                 }))
                                 .with_overlay(true)
                                 .with_color(egui::Color32::YELLOW);
-                                app.main_chart.indicators.add_indicator(Box::new(ind));
+                                app.forge_chart.indicators.add_indicator(Box::new(ind));
                             } else {
                                 let vals = engine.eval_float(&unrolled);
                                 let overlay = st == SemanticType::Price || st == SemanticType::Scalar;
                                 let name = if overlay { "Forge Overlay" } else { "Forge Oscillator" };
                                 let color = if overlay { egui::Color32::from_rgb(255, 100, 100) } else { egui::Color32::from_rgb(100, 200, 255) };
                                 
-                                let mut ind = CustomIndicator::new(name, Box::new(move |bars| {
+                                let ind = CustomIndicator::new(name, Box::new(move |bars| {
                                     bars.iter().enumerate().map(|(i, _)| {
-                                        if i < vals.len() {
-                                            IndicatorValue::Single(vals[i])
+                                        let raw_i = i + scrubber_idx;
+                                        
+                                        if raw_i < vals.len() {
+                                            IndicatorValue::Single(vals[raw_i])
                                         } else {
                                             IndicatorValue::None
                                         }
@@ -227,17 +240,17 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context) {
                                 }))
                                 .with_overlay(overlay)
                                 .with_color(color);
-                                app.main_chart.indicators.add_indicator(Box::new(ind));
+                                app.forge_chart.indicators.add_indicator(Box::new(ind));
                             }
                             
                             // Re-calculate the new indicators on existing bar data
-                            let bars = app.main_chart.chart.data().bars.clone();
-                            app.main_chart.indicators.calculate_all(&bars);
+                            let bars = app.forge_chart.chart.data().bars.clone();
+                            app.forge_chart.indicators.calculate_all(&bars);
                         }
                     }
                     
-                    app.main_chart.update();
-                    app.main_chart.show(ui);
+                    app.forge_chart.update();
+                    app.forge_chart.show(ui);
                 } else {
                     ui.label("Waiting for data. Please go to the Data Sandbox to generate or load data first.");
                 }

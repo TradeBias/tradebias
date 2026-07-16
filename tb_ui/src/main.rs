@@ -6,6 +6,7 @@ mod components;
 mod tabs;
 mod app;
 mod export;
+mod theme;
 pub mod node_graph;
 
 use app::TradingApp;
@@ -15,10 +16,30 @@ fn main() -> eframe::Result<()> {
     // Initialize tracing
     tracing_subscriber::fmt::init();
 
+    let icon_img = image::load_from_memory(include_bytes!("../../assets/logo.png")).expect("Failed to load icon").to_rgba8();
+    let (icon_width, icon_height) = icon_img.dimensions();
+    
+    // Make the actual logo 30% smaller inside the same bounding box (adds transparent padding)
+    let new_width = (icon_width as f32 * 0.7) as u32;
+    let new_height = (icon_height as f32 * 0.7) as u32;
+    let resized = image::imageops::resize(&icon_img, new_width, new_height, image::imageops::FilterType::Lanczos3);
+    
+    let mut padded = image::RgbaImage::new(icon_width, icon_height);
+    image::imageops::overlay(&mut padded, &resized, ((icon_width - new_width) / 2) as i64, ((icon_height - new_height) / 2) as i64);
+    
+    let icon_data = eframe::egui::IconData {
+        rgba: padded.into_raw(),
+        width: icon_width,
+        height: icon_height,
+    };
+
     let native_options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default()
             .with_inner_size([1280.0, 720.0])
-            .with_min_inner_size([800.0, 600.0]),
+            .with_min_inner_size([800.0, 600.0])
+            .with_icon(std::sync::Arc::new(icon_data))
+            .with_decorations(false) // Disable standard OS title bar
+            .with_transparent(true), // Enable transparent window for custom border
         ..Default::default()
     };
 

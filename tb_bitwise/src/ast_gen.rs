@@ -23,7 +23,7 @@ impl AstGenerator {
         let op = rng.gen_range(0..4);
         
         // Randomly decide the target semantic type for this comparison
-        let target_type = if rng.gen_bool(0.5) { SemanticType::Price } else { SemanticType::Ratio };
+        let target_type = if rng.gen_bool(0.5) { SemanticType::Price } else { SemanticType::Oscillator };
         
         let lhs = self.generate_node(target_type, 1);
         let rhs = self.generate_node(target_type, 1);
@@ -109,7 +109,7 @@ impl AstGenerator {
                     }
                 }
             },
-            SemanticType::Ratio => {
+            SemanticType::Oscillator => {
                 let op = rng.gen_range(0..3);
                 match op {
                     0 => { // Div Price / Price
@@ -127,7 +127,7 @@ impl AstGenerator {
                         let p = *self.permitted_periods.choose(&mut rng).unwrap();
                         
                         if !self.permitted_indicators.is_empty() && rng.gen_bool(0.7) {
-                            let ratio_inds: Vec<&tb_core::ast::IndicatorBlueprint> = self.permitted_indicators.iter().filter(|i| i.semantic_type == SemanticType::Ratio).collect();
+                            let ratio_inds: Vec<&tb_core::ast::IndicatorBlueprint> = self.permitted_indicators.iter().filter(|i| i.semantic_type == SemanticType::Oscillator).collect();
                             if !ratio_inds.is_empty() {
                                 let ind = ratio_inds.choose(&mut rng).unwrap();
                                 let (output_name, _) = ind.outputs.choose(&mut rng).unwrap();

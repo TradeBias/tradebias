@@ -59,13 +59,21 @@ pub struct TradingApp {
     pub selected_tab: usize,
     pub _right_panel_open: bool,
     pub config: tb_core::SessionConfig,
-    pub main_chart: TradingChart,
+    pub sandbox_chart: TradingChart,
+    pub forge_chart: TradingChart,
     pub loaded_data: Option<LazyFrame>,
-    
+    pub raw_dataframe: Option<polars::frame::DataFrame>,
+    pub minimap_bounds_cache: Option<(f64, f64)>,
+    pub full_bar_data: Vec<egui_charts::model::Bar>,
+    pub minimap_line_cache: Option<Vec<egui_plot::PlotPoint>>,
+    pub scrubber_index: usize,
+    pub scrubber_window: usize,
+    pub scrubber_drag_mode: u8,
     // Column Mapping State
     pub show_mapping_modal: bool,
     pub show_indicator_modal: bool,
     pub show_metric_filters_modal: bool,
+    pub show_alpha_settings: bool,
     
     // Robustness State
     pub show_robustness_modal: bool,
@@ -174,15 +182,29 @@ impl Default for TradingApp {
             selected_tab: 0,
             _right_panel_open: true,
             config: tb_core::SessionConfig::default(),
-            main_chart: ChartBuilder::new()
-                .with_symbol("BTC-USD")
-                .with_timeframe(Timeframe::Hour1)
-                .with_theme(Theme::dark())
+            sandbox_chart: ChartBuilder::new()
+                .with_symbol("TBD")
+                .with_timeframe(egui_charts::model::Timeframe::Hour1)
+                .with_theme(crate::theme::get_charts_theme())
+                .build(),
+            forge_chart: ChartBuilder::new()
+                .with_symbol("TBD")
+                .with_timeframe(egui_charts::model::Timeframe::Hour1)
+                .with_theme(crate::theme::get_charts_theme())
                 .build(),
             loaded_data: None,
+            raw_dataframe: None,
+            minimap_bounds_cache: None,
+            full_bar_data: Vec::new(),
+            minimap_line_cache: None,
+            scrubber_index: 0,
+            scrubber_window: 100,
+            scrubber_drag_mode: 0,
             show_mapping_modal: false,
             show_indicator_modal: false,
             show_metric_filters_modal: false,
+            show_alpha_settings: false,
+            
             show_robustness_modal: false,
             selected_strategy_idx: None,
             robustness_report: None,
@@ -231,7 +253,13 @@ impl Default for TradingApp {
 }
 
 impl TradingApp {
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        crate::theme::apply_theme(&cc.egui_ctx);
+
+        let mut fonts = eframe::egui::FontDefinitions::default();
+        egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+        cc.egui_ctx.set_fonts(fonts);
+
         Self::default()
     }
 }

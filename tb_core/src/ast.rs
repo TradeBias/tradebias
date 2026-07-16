@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 pub enum SemanticType {
     Price,
     Volume,
-    Ratio,
+    Oscillator,
     Scalar,
     Boolean,
     Unknown,
@@ -185,7 +185,7 @@ impl Expr {
             | Expr::StdDev { source, .. } 
             | Expr::Macro { source, .. } => source.semantic_type(),
 
-            Expr::LinRegSlope { .. } => SemanticType::Ratio,
+            Expr::LinRegSlope { .. } => SemanticType::Oscillator,
 
             // Relational & Logical always produce Boolean
             Expr::GreaterThan { .. } 
@@ -203,13 +203,28 @@ impl Expr {
             | Expr::EhlersCyberCycle { .. } => SemanticType::Price,
 
             // Binary Arithmetic Type Algebra
-            Expr::Add { lhs, rhs } | Expr::Sub { lhs, rhs } => {
+            Expr::Add { lhs, rhs } => {
                 let l = lhs.semantic_type();
                 let r = rhs.semantic_type();
-                if l == r && (l == SemanticType::Price || l == SemanticType::Ratio || l == SemanticType::Volume || l == SemanticType::Scalar) {
+                if l == r && (l == SemanticType::Price || l == SemanticType::Oscillator || l == SemanticType::Volume || l == SemanticType::Scalar) {
                     l
-                } else if (l == SemanticType::Ratio && r == SemanticType::Scalar) || (l == SemanticType::Scalar && r == SemanticType::Ratio) {
-                    SemanticType::Ratio
+                } else if (l == SemanticType::Oscillator && r == SemanticType::Scalar) || (l == SemanticType::Scalar && r == SemanticType::Oscillator) {
+                    SemanticType::Oscillator
+                } else {
+                    SemanticType::Unknown
+                }
+            },
+            Expr::Sub { lhs, rhs } => {
+                let l = lhs.semantic_type();
+                let r = rhs.semantic_type();
+                if l == SemanticType::Price && r == SemanticType::Price {
+                    SemanticType::Oscillator
+                } else if l == r && (l == SemanticType::Oscillator || l == SemanticType::Volume || l == SemanticType::Scalar) {
+                    l
+                } else if (l == SemanticType::Oscillator && r == SemanticType::Scalar) || (l == SemanticType::Scalar && r == SemanticType::Oscillator) {
+                    SemanticType::Oscillator
+                } else if l == SemanticType::Price && r == SemanticType::Scalar {
+                    SemanticType::Price
                 } else {
                     SemanticType::Unknown
                 }
@@ -221,10 +236,10 @@ impl Expr {
                 match (l, r) {
                     (SemanticType::Price, SemanticType::Scalar) | (SemanticType::Scalar, SemanticType::Price) => SemanticType::Price,
                     (SemanticType::Volume, SemanticType::Scalar) | (SemanticType::Scalar, SemanticType::Volume) => SemanticType::Volume,
-                    (SemanticType::Ratio, SemanticType::Scalar) | (SemanticType::Scalar, SemanticType::Ratio) => SemanticType::Ratio,
+                    (SemanticType::Oscillator, SemanticType::Scalar) | (SemanticType::Scalar, SemanticType::Oscillator) => SemanticType::Oscillator,
                     (SemanticType::Scalar, SemanticType::Scalar) => SemanticType::Scalar,
-                    (SemanticType::Price, SemanticType::Ratio) | (SemanticType::Ratio, SemanticType::Price) => SemanticType::Price,
-                    (SemanticType::Volume, SemanticType::Ratio) | (SemanticType::Ratio, SemanticType::Volume) => SemanticType::Volume,
+                    (SemanticType::Price, SemanticType::Oscillator) | (SemanticType::Oscillator, SemanticType::Price) => SemanticType::Price,
+                    (SemanticType::Volume, SemanticType::Oscillator) | (SemanticType::Oscillator, SemanticType::Volume) => SemanticType::Volume,
                     _ => SemanticType::Unknown,
                 }
             },
@@ -233,12 +248,12 @@ impl Expr {
                 let l = lhs.semantic_type();
                 let r = rhs.semantic_type();
                 match (l, r) {
-                    (SemanticType::Price, SemanticType::Price) => SemanticType::Ratio,
-                    (SemanticType::Volume, SemanticType::Volume) => SemanticType::Ratio,
+                    (SemanticType::Price, SemanticType::Price) => SemanticType::Oscillator,
+                    (SemanticType::Volume, SemanticType::Volume) => SemanticType::Oscillator,
                     (SemanticType::Price, SemanticType::Scalar) => SemanticType::Price,
                     (SemanticType::Volume, SemanticType::Scalar) => SemanticType::Volume,
-                    (SemanticType::Ratio, SemanticType::Scalar) => SemanticType::Ratio,
-                    (SemanticType::Ratio, SemanticType::Ratio) => SemanticType::Ratio,
+                    (SemanticType::Oscillator, SemanticType::Scalar) => SemanticType::Oscillator,
+                    (SemanticType::Oscillator, SemanticType::Oscillator) => SemanticType::Oscillator,
                     (SemanticType::Scalar, SemanticType::Scalar) => SemanticType::Scalar,
                     _ => SemanticType::Unknown,
                 }

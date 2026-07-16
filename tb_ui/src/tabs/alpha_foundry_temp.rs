@@ -32,8 +32,7 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context, outer_ui: &mut egui::Ui
     let top_frame = egui::Frame::default()
         .fill(crate::theme::WINDOW_FILL)
         .inner_margin(12.0)
-        .outer_margin(8.0)
-        .corner_radius(12)
+        .corner_radius(8)
         .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(51, 51, 51)));
 
     egui::TopBottomPanel::top("alpha_action_bar")
@@ -53,14 +52,11 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context, outer_ui: &mut egui::Ui
             });
         });
         
+    outer_ui.add_space(8.0);
+        
     // Conditional Settings Drawer
     if app.show_alpha_settings {
-        let drawer_frame = egui::Frame::default()
-            .fill(crate::theme::WINDOW_FILL)
-            .inner_margin(16.0)
-            .outer_margin(8.0)
-            .corner_radius(12)
-            .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(51, 51, 51)));
+        let drawer_frame = egui::Frame::default().fill(crate::theme::WINDOW_FILL).inner_margin(16.0).corner_radius(8);
         egui::SidePanel::left("alpha_settings_drawer")
             .resizable(true)
             .default_width(350.0)
@@ -537,14 +533,7 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context, outer_ui: &mut egui::Ui
         let is_precomputing = metrics.status_msg.as_ref().map_or(false, |m| m.contains("Precomputing"));
         let current_gen = metrics.generation;
 
-        let stats_frame = egui::Frame::default()
-            .fill(crate::theme::WINDOW_FILL)
-            .inner_margin(12.0)
-            .outer_margin(8.0)
-            .corner_radius(12)
-            .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(51, 51, 51)));
-            
-        egui::TopBottomPanel::bottom("foundry_stats_panel").frame(stats_frame).show_inside(outer_ui, |ui| {
+        egui::TopBottomPanel::bottom("foundry_stats_panel").show_inside(outer_ui, |ui| {
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
                     let speed = if metrics.elapsed_seconds > 0.0 {
@@ -584,8 +573,7 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context, outer_ui: &mut egui::Ui
         let card_frame = egui::Frame::default()
             .fill(crate::theme::WINDOW_FILL)
             .inner_margin(16.0)
-            .outer_margin(8.0)
-            .corner_radius(12)
+            .corner_radius(8)
             .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(51, 51, 51)));
             
         egui::SidePanel::right("robustness_panel")
@@ -597,12 +585,7 @@ pub fn render(app: &mut TradingApp, ctx: &egui::Context, outer_ui: &mut egui::Ui
             });
     }
 
-    let central_frame = egui::Frame::default()
-        .fill(ctx.style().visuals.panel_fill)
-        .inner_margin(16.0)
-        .outer_margin(8.0)
-        .corner_radius(12)
-        .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(51, 51, 51)));
+    let central_frame = egui::Frame::default().fill(ctx.style().visuals.panel_fill).inner_margin(16.0);
     egui::CentralPanel::default().frame(central_frame).show_inside(outer_ui, |ui| {
         ui.heading("Alpha Foundry - Leaderboard (Phase 1)");
         

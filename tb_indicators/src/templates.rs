@@ -90,7 +90,7 @@ pub fn default_blueprints() -> Vec<IndicatorBlueprint> {
         },
         IndicatorBlueprint {
             name: "MACD".to_string(),
-            semantic_type: SemanticType::Ratio,
+            semantic_type: SemanticType::Oscillator,
             is_custom: false,
             outputs: vec![
                 ("Line".to_string(), macd_line(Expr::Placeholder, 12, 26)),
@@ -99,7 +99,7 @@ pub fn default_blueprints() -> Vec<IndicatorBlueprint> {
         },
         IndicatorBlueprint {
             name: "RSI".to_string(),
-            semantic_type: SemanticType::Ratio,
+            semantic_type: SemanticType::Oscillator,
             is_custom: false,
             outputs: vec![("Value".to_string(), normalized_momentum(Expr::Placeholder, 14))],
         },

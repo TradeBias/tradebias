@@ -7,3 +7,8 @@ members = ["tb_bench", "tb_bitwise",
     "tb_simulator",
     "tb_ui",
 ]
+
+# Optimize all dependencies even in debug mode.
+# This makes `cargo run` (debug) blazing fast without the massive compile times of `--release`
+[profile.dev.package."*"]
+opt-level = 3

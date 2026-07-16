@@ -55,13 +55,47 @@ pub fn render_mapping_modal(app: &mut TradingApp, ctx: &egui::Context) {
                                     if let Ok(df) = lf.clone().collect() {
                                         match parse_dataframe_to_bars(&df) {
                                             Ok(bar_data) => {
+                                                app.raw_dataframe = Some(df.clone());
+                                                app.full_bar_data = bar_data.bars.clone();
+                                                
+                                                let total_bars = bar_data.bars.len();
+                                                let max_points = 2000;
+                                                let minimap_points: Vec<egui_plot::PlotPoint> = if total_bars > max_points {
+                                                    let chunk_size = (total_bars as f64 / max_points as f64).ceil() as usize;
+                                                    bar_data.bars.chunks(chunk_size).enumerate().map(|(chunk_idx, chunk)| {
+                                                        let x_center = chunk_idx * chunk_size + chunk.len() / 2;
+                                                        let y_val = chunk.last().unwrap().close;
+                                                        egui_plot::PlotPoint::new(x_center as f64, y_val)
+                                                    }).collect()
+                                                } else {
+                                                    bar_data.bars.iter().enumerate().map(|(i, b)| egui_plot::PlotPoint::new(i as f64, b.close)).collect()
+                                                };
+                                                app.minimap_line_cache = Some(minimap_points);
+                                                
+                                                let y_min = bar_data.bars.iter().filter(|b| !b.close.is_nan()).fold(f64::INFINITY, |a, b| a.min(b.close));
+                                                let y_max = bar_data.bars.iter().filter(|b| !b.close.is_nan()).fold(f64::NEG_INFINITY, |a, b| a.max(b.close));
+                                                app.minimap_bounds_cache = Some((y_min, y_max));
+                                                
+                                                app.scrubber_index = 0;
+                                                
+                                                let slice_end = app.scrubber_window.min(bar_data.bars.len());
+                                                let window_data = bar_data.bars[0..slice_end].to_vec();
+                                                let window_bar_data = egui_charts::model::BarData { bars: window_data };
+                                                
                                                 let symbol = parquet_path.file_stem().unwrap_or_default().to_string_lossy().into_owned();
-                                                app.main_chart = egui_charts::ChartBuilder::new()
+                                                app.sandbox_chart = egui_charts::ChartBuilder::new()
                                                     .with_symbol(&symbol)
                                                     .with_timeframe(egui_charts::model::Timeframe::Hour1)
-                                                    .with_theme(egui_charts::theme::Theme::dark())
+                                                    .with_theme(crate::theme::get_charts_theme())
                                                     .build();
-                                                app.main_chart.chart.update_data(bar_data);
+                                                app.sandbox_chart.chart.update_data(window_bar_data.clone());
+                                                
+                                                app.forge_chart = egui_charts::ChartBuilder::new()
+                                                    .with_symbol(&symbol)
+                                                    .with_timeframe(egui_charts::model::Timeframe::Hour1)
+                                                    .with_theme(crate::theme::get_charts_theme())
+                                                    .build();
+                                                app.forge_chart.chart.update_data(window_bar_data);
                                                 println!("Chart data injected successfully!");
                                             },
                                             Err(e) => println!("ERROR Parsing DataFrame to Bars: {}", e),
@@ -85,6 +119,129 @@ pub fn render_mapping_modal(app: &mut TradingApp, ctx: &egui::Context) {
         });
 }
 
+pub fn render_robustness_ui(app: &mut TradingApp, ui: &mut egui::Ui) -> bool {
+    let mut needs_regen = false;
+    if let Some(report) = &app.robustness_report {
+        ui.horizontal(|ui| {
+            ui.vertical(|ui| {
+                ui.set_width(250.0);
+                ui.heading("Robustness Tests");
+                ui.separator();
+
+                ui.label(egui::RichText::new("A. Feature Ablation").strong());
+                ui.label("Toggle logic nodes to see curve impact:");
+                if let (Some(engine), Some(idx)) = (&app.bitwise_engine, app.selected_strategy_idx) {
+                    if let Some(metrics) = &app.latest_metrics {
+                        if idx < metrics.strategies.len() {
+                            let strategy = &metrics.strategies[idx];
+                            for (c_idx, c) in strategy.conditions.iter().enumerate() {
+                                let name = format!("{:?}", c);
+                                let mut is_enabled = !app.robustness_disabled_conditions.contains(&c_idx);
+                                if ui.checkbox(&mut is_enabled, name).changed() {
+                                    if is_enabled {
+                                        app.robustness_disabled_conditions.remove(&c_idx);
+                                    } else {
+                                        app.robustness_disabled_conditions.insert(c_idx);
+                                    }
+                                    needs_regen = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                ui.add_space(10.0);
+
+                ui.label(egui::RichText::new("B. IS/OOS Decay").strong());
+                ui.label("IS/OOS boundary is marked by a vertical dashed line.");
+                ui.add_space(10.0);
+
+                ui.label(egui::RichText::new("C. Top Trade Deletion").strong());
+                ui.checkbox(&mut app.robustness_show_deletion, "Show Deletion Curve");
+                ui.horizontal(|ui| {
+                    ui.label("Drop Top N Trades:");
+                    if ui.add(egui::Slider::new(&mut app.robustness_top_n_drop, 0..=10)).changed() {
+                        needs_regen = true;
+                    }
+                });
+                ui.add_space(10.0);
+
+                ui.label(egui::RichText::new("D. Slippage Test").strong());
+                ui.checkbox(&mut app.robustness_show_noise, "Show Worst-Case Slippage Line");
+                ui.horizontal(|ui| {
+                    ui.label("Fixed Penalty per Trade:");
+                    if ui.add(egui::Slider::new(&mut app.robustness_noise_pct, 0.0..=5.0).text("pts")).changed() {
+                        needs_regen = true;
+                    }
+                });
+                ui.add_space(10.0);
+
+                ui.label(egui::RichText::new("E. Monte Carlo").strong());
+                ui.checkbox(&mut app.robustness_show_mc, "Show Spaghetti Cloud");
+                ui.label("Generated via Block Bootstrapping");
+            });
+            
+            ui.separator();
+            
+            Plot::new("robustness_equity_curve")
+                .view_aspect(2.0)
+                .show(ui, |plot_ui| {
+                    // B. IS/OOS Boundary
+                    let is_len = (report.baseline_curve.len() as f64 * (app.config.phase1.in_sample_pct / 100.0)) as f64;
+                    plot_ui.vline(egui_plot::VLine::new("IS/OOS Boundary", is_len)
+                        .color(egui::Color32::from_gray(120))
+                        .style(egui_plot::LineStyle::Dashed { length: 5.0 }));
+                    if app.robustness_show_noise {
+                        let step = (report.slippage_curve.len() / 2000).max(1);
+                        let slippage_pts: PlotPoints = report.slippage_curve
+                            .iter()
+                            .enumerate()
+                            .step_by(step)
+                            .map(|(i, &pnl)| [i as f64, pnl])
+                            .collect();
+                        plot_ui.line(Line::new("Slippage", slippage_pts).color(egui::Color32::from_rgb(255, 140, 0)).width(2.0));
+                    }
+                    
+                    if app.robustness_show_mc {
+                        for (i, mc_curve) in report.monte_carlo_curves.iter().enumerate() {
+                            let step = (mc_curve.len() / 500).max(1);
+                            let mc_pts: PlotPoints = mc_curve
+                                .iter()
+                                .enumerate()
+                                .step_by(step)
+                                .map(|(i, &pnl)| [i as f64, pnl])
+                                .collect();
+                            plot_ui.line(Line::new(format!("MC_{}", i), mc_pts).color(egui::Color32::from_white_alpha(15)).width(1.0));
+                        }
+                    }
+
+                    if app.robustness_show_deletion {
+                        let step = (report.deletion_curve.len() / 2000).max(1);
+                        let del_pts: PlotPoints = report.deletion_curve
+                            .iter()
+                            .enumerate()
+                            .step_by(step)
+                            .map(|(i, &pnl)| [i as f64, pnl])
+                            .collect();
+                        plot_ui.line(Line::new("Trade Deletion", del_pts).color(egui::Color32::from_rgb(255, 100, 100)).style(egui_plot::LineStyle::Dashed { length: 5.0 }).width(2.0));
+                    }
+
+                    let step = (report.baseline_curve.len() / 2000).max(1);
+                    let baseline_pts: PlotPoints = report.baseline_curve
+                        .iter()
+                        .enumerate()
+                        .step_by(step)
+                        .map(|(i, &pnl)| [i as f64, pnl])
+                        .collect();
+                    
+                    plot_ui.line(Line::new("Baseline", baseline_pts).color(egui::Color32::from_rgb(100, 150, 250)).width(3.0));
+                });
+        });
+    } else {
+        ui.label("Select a strategy to see its Robustness Report...");
+    }
+    needs_regen
+}
+
 pub fn render_robustness_modal(app: &mut TradingApp, ctx: &egui::Context) {
     if !app.show_robustness_modal {
         return;
@@ -98,124 +255,7 @@ pub fn render_robustness_modal(app: &mut TradingApp, ctx: &egui::Context) {
         .default_width(900.0)
         .default_height(600.0)
         .show(ctx, |ui| {
-            if let Some(report) = &app.robustness_report {
-                ui.horizontal(|ui| {
-                    ui.vertical(|ui| {
-                        ui.set_width(250.0);
-                        ui.heading("Robustness Tests");
-                        ui.separator();
-
-                        ui.label(egui::RichText::new("A. Feature Ablation").strong());
-                        ui.label("Toggle logic nodes to see curve impact:");
-                        if let (Some(engine), Some(idx)) = (&app.bitwise_engine, app.selected_strategy_idx) {
-                            if let Some(metrics) = &app.latest_metrics {
-                                if idx < metrics.strategies.len() {
-                                    let strategy = &metrics.strategies[idx];
-                                    for (c_idx, c) in strategy.conditions.iter().enumerate() {
-                                        let name = format!("{:?}", c);
-                                        let mut is_enabled = !app.robustness_disabled_conditions.contains(&c_idx);
-                                        if ui.checkbox(&mut is_enabled, name).changed() {
-                                            if is_enabled {
-                                                app.robustness_disabled_conditions.remove(&c_idx);
-                                            } else {
-                                                app.robustness_disabled_conditions.insert(c_idx);
-                                            }
-                                            needs_regen = true;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        ui.add_space(10.0);
-
-                        ui.label(egui::RichText::new("B. IS/OOS Decay").strong());
-                        ui.label("IS/OOS boundary is marked by a vertical dashed line.");
-                        ui.add_space(10.0);
-
-                        ui.label(egui::RichText::new("C. Top Trade Deletion").strong());
-                        ui.checkbox(&mut app.robustness_show_deletion, "Show Deletion Curve");
-                        ui.horizontal(|ui| {
-                            ui.label("Drop Top N Trades:");
-                            if ui.add(egui::Slider::new(&mut app.robustness_top_n_drop, 0..=10)).changed() {
-                                needs_regen = true;
-                            }
-                        });
-                        ui.add_space(10.0);
-
-                        ui.label(egui::RichText::new("D. Slippage Test").strong());
-                        ui.checkbox(&mut app.robustness_show_noise, "Show Worst-Case Slippage Line");
-                        ui.horizontal(|ui| {
-                            ui.label("Fixed Penalty per Trade:");
-                            if ui.add(egui::Slider::new(&mut app.robustness_noise_pct, 0.0..=5.0).text("pts")).changed() {
-                                needs_regen = true;
-                            }
-                        });
-                        ui.add_space(10.0);
-
-                        ui.label(egui::RichText::new("E. Monte Carlo").strong());
-                        ui.checkbox(&mut app.robustness_show_mc, "Show Spaghetti Cloud");
-                        ui.label("Generated via Block Bootstrapping");
-                    });
-                    
-                    ui.separator();
-                    
-                    Plot::new("robustness_equity_curve")
-                        .view_aspect(2.0)
-                        .show(ui, |plot_ui| {
-                            // B. IS/OOS Boundary
-                            let is_len = (report.baseline_curve.len() as f64 * (app.config.phase1.in_sample_pct / 100.0)) as f64;
-                            plot_ui.vline(egui_plot::VLine::new("IS/OOS Boundary", is_len)
-                                .color(egui::Color32::from_gray(120))
-                                .style(egui_plot::LineStyle::Dashed { length: 5.0 }));
-                            if app.robustness_show_noise {
-                                let step = (report.slippage_curve.len() / 2000).max(1);
-                                let slippage_pts: PlotPoints = report.slippage_curve
-                                    .iter()
-                                    .enumerate()
-                                    .step_by(step)
-                                    .map(|(i, &pnl)| [i as f64, pnl])
-                                    .collect();
-                                plot_ui.line(Line::new("Slippage", slippage_pts).color(egui::Color32::from_rgb(255, 140, 0)).width(2.0));
-                            }
-                            
-                            if app.robustness_show_mc {
-                                for (i, mc_curve) in report.monte_carlo_curves.iter().enumerate() {
-                                    let step = (mc_curve.len() / 500).max(1);
-                                    let mc_pts: PlotPoints = mc_curve
-                                        .iter()
-                                        .enumerate()
-                                        .step_by(step)
-                                        .map(|(i, &pnl)| [i as f64, pnl])
-                                        .collect();
-                                    plot_ui.line(Line::new(format!("MC_{}", i), mc_pts).color(egui::Color32::from_white_alpha(15)).width(1.0));
-                                }
-                            }
-
-                            if app.robustness_show_deletion {
-                                let step = (report.deletion_curve.len() / 2000).max(1);
-                                let del_pts: PlotPoints = report.deletion_curve
-                                    .iter()
-                                    .enumerate()
-                                    .step_by(step)
-                                    .map(|(i, &pnl)| [i as f64, pnl])
-                                    .collect();
-                                plot_ui.line(Line::new("Trade Deletion", del_pts).color(egui::Color32::from_rgb(255, 100, 100)).style(egui_plot::LineStyle::Dashed { length: 5.0 }).width(2.0));
-                            }
-
-                            let step = (report.baseline_curve.len() / 2000).max(1);
-                            let baseline_pts: PlotPoints = report.baseline_curve
-                                .iter()
-                                .enumerate()
-                                .step_by(step)
-                                .map(|(i, &pnl)| [i as f64, pnl])
-                                .collect();
-                            
-                            plot_ui.line(Line::new("Baseline", baseline_pts).color(egui::Color32::from_rgb(100, 150, 250)).width(3.0));
-                        });
-                });
-            } else {
-                ui.label("Generating report...");
-            }
+            needs_regen = render_robustness_ui(app, ui);
         });
 
     if needs_regen {

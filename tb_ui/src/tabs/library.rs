@@ -1,9 +1,10 @@
 use eframe::egui;
 use crate::state::TradingApp;
 
-pub fn render(_app: &mut TradingApp, ctx: &egui::Context) {
-    let central_frame = egui::Frame::default().fill(ctx.style().visuals.panel_fill).inner_margin(16.0);
-    egui::CentralPanel::default().frame(central_frame).show(ctx, |ui| {
+pub fn render(_app: &mut TradingApp, ctx: &egui::Context, outer_ui: &mut egui::Ui) {
+    let central_frame = egui::Frame::default().fill(ctx.style().visuals.panel_fill).inner_margin(16.0)
+        .rounding(egui::CornerRadius { nw: 0, ne: 0, sw: 0, se: 8 });
+    egui::CentralPanel::default().frame(central_frame).show_inside(outer_ui, |ui| {
         egui::ScrollArea::vertical().show(ui, |ui| {
             ui.heading("📚 Strategy Library");
             ui.add_space(16.0);

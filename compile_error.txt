@@ -1,0 +1,492 @@
+warning: function `fill_nan` is never used
+ --> tb_math\src\primitives.rs:6:4
+  |
+6 | fn fill_nan(data: &mut [f64], default: f64) {
+  |    ^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: error finalizing incremental compilation session directory `\\?\E:\repo\app-main\target\debug\incremental\tb_math-3rv64z6i1c0dv\s-hkedeqjz0j-1m81x0v-working`: Access is denied. (os error 5)
+
+warning: `tb_math` (lib) generated 2 warnings
+warning: error finalizing incremental compilation session directory `\\?\E:\repo\app-main\target\debug\incremental\tb_core-1k2rhofmjf0ia\s-hkg1gx05xv-02a5qvt-working`: Access is denied. (os error 5)
+
+warning: `tb_core` (lib) generated 1 warning
+warning: error finalizing incremental compilation session directory `\\?\E:\repo\app-main\target\debug\incremental\tb_data-27btghv40amhc\s-hkg1gxosyz-14xzmk3-working`: Access is denied. (os error 5)
+
+warning: error finalizing incremental compilation session directory `\\?\E:\repo\app-main\target\debug\incremental\tb_indicators-0lai6jtpdjrb8\s-hkg1gxoszm-08ajb74-working`: Access is denied. (os error 5)
+
+warning: `tb_data` (lib) generated 1 warning
+warning: `tb_indicators` (lib) generated 1 warning
+warning: unused imports: `info` and `warn`
+ --> tb_simulator\src\engine.rs:3:15
+  |
+3 | use tracing::{info, warn};
+  |               ^^^^  ^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `risk_exit` is never read
+   --> tb_simulator\src\engine.rs:122:37
+    |
+122 |                 let mut risk_exit = false;
+    |                                     ^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: error finalizing incremental compilation session directory `\\?\E:\repo\app-main\target\debug\incremental\tb_simulator-3a0nfnlyk4y03\s-hkg1gxvtjp-0y0fg00-working`: Access is denied. (os error 5)
+
+warning: unused imports: `StopCalculation` and `TakeProfit`
+ --> tb_bitwise\src\targets.rs:3:22
+  |
+3 | use tb_core::stops::{StopCalculation, TakeProfit};
+  |                      ^^^^^^^^^^^^^^^  ^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+  --> tb_bitwise\src\ga.rs:90:13
+   |
+90 |         let mut current_population = Self::deduplicate_genomes(current_population, &mut self.hash_cache);
+   |             ----^^^^^^^^^^^^^^^^^^
+   |             |
+   |             help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: error finalizing incremental compilation session directory `\\?\E:\repo\app-main\target\debug\incremental\tb_bitwise-1piukmkbl9wrk\s-hkg1gxum7u-1h4zvp9-working`: Access is denied. (os error 5)
+
+warning: `tb_simulator` (lib) generated 3 warnings (run `cargo fix --lib -p tb_simulator` to apply 1 suggestion)
+warning: `tb_bitwise` (lib) generated 3 warnings (run `cargo fix --lib -p tb_bitwise` to apply 2 suggestions)
+    Checking tb_ui v0.1.0 (E:\repo\app-main\tb_ui)
+error[E0433]: cannot find `TileArea` in `egui_tiles`
+   --> tb_ui\src\tabs\alpha_foundry.rs:540:21
+    |
+540 |         egui_tiles::TileArea::new("foundry_tiles")
+    |                     ^^^^^^^^ could not find `TileArea` in `egui_tiles`
+
+warning: unused imports: `model::Timeframe` and `theme::Theme`
+ --> tb_ui\src\state.rs:2:47
+  |
+2 | use egui_charts::{ChartBuilder, TradingChart, model::Timeframe, theme::Theme};
+  |                                               ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `PlotPoints`, `Plot`, and `Points`
+ --> tb_ui\src\tabs\alpha_foundry.rs:2:17
+  |
+2 | use egui_plot::{Plot, Points, PlotPoints};
+  |                 ^^^^  ^^^^^^  ^^^^^^^^^^
+
+warning: unused import: `std::collections::HashSet`
+   --> tb_ui\src\tabs\alpha_foundry.rs:359:25
+    |
+359 |                     use std::collections::HashSet;
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Expr`
+ --> tb_ui\src\tabs\indicator_forge.rs:3:20
+  |
+3 | use tb_core::ast::{Expr, IndicatorBlueprint, SemanticType};
+  |                    ^^^^
+
+warning: unused imports: `Line`, `PlotPoints`, `Plot`, and `Points`
+ --> tb_ui\src\tabs\indicator_forge.rs:5:17
+  |
+5 | use egui_plot::{Plot, Line, PlotPoints, Points};
+  |                 ^^^^  ^^^^  ^^^^^^^^^^  ^^^^^^
+
+warning: unused import: `Rounding`
+ --> tb_ui\src\theme.rs:1:35
+  |
+1 | use eframe::egui::{self, Color32, Rounding, Stroke, Margin};
+  |                                   ^^^^^^^^
+
+warning: use of deprecated type alias `eframe::egui::Rounding`: Renamed to CornerRadius
+ --> tb_ui\src\theme.rs:1:35
+  |
+1 | use eframe::egui::{self, Color32, Rounding, Stroke, Margin};
+  |                                   ^^^^^^^^
+  |
+  = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated associated function `eframe::egui::ComboBox::from_id_source`: Renamed from_id_salt
+  --> tb_ui\src\components\modals.rs:23:37
+   |
+23 |                     egui::ComboBox::from_id_source(label)
+   |                                     ^^^^^^^^^^^^^^
+
+warning: use of deprecated associated function `eframe::egui::Frame::none`: Use `Frame::NONE` or `Frame::new()` instead.
+ --> tb_ui\src\components\left_nav.rs:5:30
+  |
+5 |     let frame = egui::Frame::none()
+  |                              ^^^^
+
+warning: use of deprecated method `eframe::egui::Frame::rounding`: Renamed to `corner_radius`
+ --> tb_ui\src\components\left_nav.rs:7:10
+  |
+7 |         .rounding(egui::CornerRadius { nw: 8, sw: 8, ne: 0, se: 0 });
+  |          ^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Frame::rounding`: Renamed to `corner_radius`
+   --> tb_ui\src\tabs\data_sandbox.rs:125:10
+    |
+125 |         .rounding(egui::CornerRadius { nw: 0, ne: 0, sw: 0, se: 8 });
+    |          ^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Context::screen_rect`: screen_rect has been split into viewport_rect() and content_rect(). You likely should use content_rect()
+   --> tb_ui\src\tabs\data_sandbox.rs:135:44
+    |
+135 |                 if w <= 0.0 { w = ui.ctx().screen_rect().width(); }
+    |                                            ^^^^^^^^^^^
+
+warning: use of deprecated associated function `eframe::egui::ComboBox::from_id_source`: Renamed from_id_salt
+  --> tb_ui\src\tabs\alpha_foundry.rs:65:37
+   |
+65 |                     egui::ComboBox::from_id_source("stop_type_dropdown")
+   |                                     ^^^^^^^^^^^^^^
+
+warning: use of deprecated associated function `eframe::egui::ComboBox::from_id_source`: Renamed from_id_salt
+  --> tb_ui\src\tabs\alpha_foundry.rs:97:45
+   |
+97 | ...                   egui::ComboBox::from_id_source("calc_type_dropdown")
+   |                                       ^^^^^^^^^^^^^^
+
+warning: use of deprecated associated function `eframe::egui::ComboBox::from_id_source`: Renamed from_id_salt
+   --> tb_ui\src\tabs\alpha_foundry.rs:135:41
+    |
+135 |                         egui::ComboBox::from_id_source("tp_type_dropdown")
+    |                                         ^^^^^^^^^^^^^^
+
+warning: use of deprecated associated function `eframe::egui::ComboBox::from_id_source`: Renamed from_id_salt
+   --> tb_ui\src\tabs\alpha_foundry.rs:168:37
+    |
+168 |                     egui::ComboBox::from_id_source("trade_dir_dropdown")
+    |                                     ^^^^^^^^^^^^^^
+
+warning: use of deprecated associated function `eframe::egui::ComboBox::from_id_source`: Renamed from_id_salt
+   --> tb_ui\src\tabs\alpha_foundry.rs:187:37
+    |
+187 |                     egui::ComboBox::from_id_source("map_x_combo")
+    |                                     ^^^^^^^^^^^^^^
+
+warning: use of deprecated associated function `eframe::egui::ComboBox::from_id_source`: Renamed from_id_salt
+   --> tb_ui\src\tabs\alpha_foundry.rs:201:37
+    |
+201 |                     egui::ComboBox::from_id_source("map_y_combo")
+    |                                     ^^^^^^^^^^^^^^
+
+warning: use of deprecated associated function `eframe::egui::ComboBox::from_id_source`: Renamed from_id_salt
+   --> tb_ui\src\tabs\alpha_foundry.rs:213:37
+    |
+213 |                     egui::ComboBox::from_id_source("grid_size_combo")
+    |                                     ^^^^^^^^^^^^^^
+
+warning: use of deprecated associated function `eframe::egui::ComboBox::from_id_source`: Renamed from_id_salt
+   --> tb_ui\src\tabs\alpha_foundry.rs:236:37
+    |
+236 |                     egui::ComboBox::from_id_source("fitness_metric_combo")
+    |                                     ^^^^^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::DragValue::<'a>::clamp_range`: Use `range` instead
+   --> tb_ui\src\tabs\alpha_foundry.rs:642:98
+    |
+642 | ...                   ui.add(egui::DragValue::new(&mut app.min_win_rate_filter).speed(1.0).clamp_range(0.0..=100.0));
+    |                                                                                            ^^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::DragValue::<'a>::clamp_range`: Use `range` instead
+   --> tb_ui\src\tabs\alpha_foundry.rs:644:98
+    |
+644 | ...                   ui.add(egui::DragValue::new(&mut app.max_win_rate_filter).speed(1.0).clamp_range(0.0..=100.0));
+    |                                                                                            ^^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::DragValue::<'a>::clamp_range`: Use `range` instead
+   --> tb_ui\src\tabs\alpha_foundry.rs:651:100
+    |
+651 | ...                   ui.add(egui::DragValue::new(&mut app.min_corr_coef_filter).speed(0.01).clamp_range(-1.0..=1.0));
+    |                                                                                              ^^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Frame::rounding`: Renamed to `corner_radius`
+  --> tb_ui\src\tabs\simulator.rs:69:10
+   |
+69 |         .rounding(egui::CornerRadius { nw: 0, ne: 0, sw: 0, se: 8 });
+   |          ^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Frame::rounding`: Renamed to `corner_radius`
+ --> tb_ui\src\tabs\library.rs:6:10
+  |
+6 |         .rounding(egui::CornerRadius { nw: 0, ne: 0, sw: 0, se: 8 });
+  |          ^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Frame::rounding`: Renamed to `corner_radius`
+ --> tb_ui\src\tabs\indicator_forge.rs:9:10
+  |
+9 |         .rounding(egui::CornerRadius { nw: 0, ne: 0, sw: 0, se: 8 });
+  |          ^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+  --> tb_ui\src\tabs\indicator_forge.rs:66:144
+   |
+66 | ...ph, node_graph::NodeKind::Source("Close".to_string())); ui.close_menu(); }
+   |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+  --> tb_ui\src\tabs\indicator_forge.rs:67:142
+   |
+67 | ...aph, node_graph::NodeKind::Source("Open".to_string())); ui.close_menu(); }
+   |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+  --> tb_ui\src\tabs\indicator_forge.rs:68:142
+   |
+68 | ...aph, node_graph::NodeKind::Source("High".to_string())); ui.close_menu(); }
+   |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+  --> tb_ui\src\tabs\indicator_forge.rs:69:140
+   |
+69 | ...raph, node_graph::NodeKind::Source("Low".to_string())); ui.close_menu(); }
+   |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+  --> tb_ui\src\tabs\indicator_forge.rs:70:146
+   |
+70 | ...h, node_graph::NodeKind::Source("Volume".to_string())); ui.close_menu(); }
+   |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+  --> tb_ui\src\tabs\indicator_forge.rs:74:146
+   |
+74 | ...ph, node_graph::NodeKind::Operator("Add".to_string())); ui.close_menu(); }
+   |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+  --> tb_ui\src\tabs\indicator_forge.rs:75:146
+   |
+75 | ...ph, node_graph::NodeKind::Operator("Sub".to_string())); ui.close_menu(); }
+   |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+  --> tb_ui\src\tabs\indicator_forge.rs:76:146
+   |
+76 | ...ph, node_graph::NodeKind::Operator("Mul".to_string())); ui.close_menu(); }
+   |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+  --> tb_ui\src\tabs\indicator_forge.rs:77:146
+   |
+77 | ...ph, node_graph::NodeKind::Operator("Div".to_string())); ui.close_menu(); }
+   |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+  --> tb_ui\src\tabs\indicator_forge.rs:78:143
+   |
+78 | ...h, node_graph::NodeKind::Indicator("Abs".to_string())); ui.close_menu(); }
+   |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+  --> tb_ui\src\tabs\indicator_forge.rs:79:133
+   |
+79 | ...forge_node_graph, node_graph::NodeKind::Constant(1.0)); ui.close_menu(); }
+   |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+  --> tb_ui\src\tabs\indicator_forge.rs:83:149
+   |
+83 | ...node_graph::NodeKind::Indicator("StdDev".to_string())); ui.close_menu(); }
+   |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+  --> tb_ui\src\tabs\indicator_forge.rs:84:147
+   |
+84 | ... node_graph::NodeKind::Indicator("Delay".to_string())); ui.close_menu(); }
+   |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+  --> tb_ui\src\tabs\indicator_forge.rs:85:147
+   |
+85 | ... node_graph::NodeKind::Indicator("TsMax".to_string())); ui.close_menu(); }
+   |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+  --> tb_ui\src\tabs\indicator_forge.rs:86:147
+   |
+86 | ... node_graph::NodeKind::Indicator("TsMin".to_string())); ui.close_menu(); }
+   |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+  --> tb_ui\src\tabs\indicator_forge.rs:90:143
+   |
+90 | ...h, node_graph::NodeKind::Indicator("SMA".to_string())); ui.close_menu(); }
+   |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+  --> tb_ui\src\tabs\indicator_forge.rs:91:143
+   |
+91 | ...h, node_graph::NodeKind::Indicator("EMA".to_string())); ui.close_menu(); }
+   |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+  --> tb_ui\src\tabs\indicator_forge.rs:92:143
+   |
+92 | ...h, node_graph::NodeKind::Indicator("WMA".to_string())); ui.close_menu(); }
+   |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+  --> tb_ui\src\tabs\indicator_forge.rs:93:143
+   |
+93 | ...h, node_graph::NodeKind::Indicator("RMA".to_string())); ui.close_menu(); }
+   |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+  --> tb_ui\src\tabs\indicator_forge.rs:94:112
+   |
+94 |                 if ui.button("MACD (Template)").clicked() { spawn_macd_template(&mut app.forge_node_graph); ui.close_menu(); }
+   |                                                                                                                ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> tb_ui\src\tabs\indicator_forge.rs:102:32
+    |
+102 | ...                   ui.close_menu();
+    |                          ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> tb_ui\src\tabs\indicator_forge.rs:115:36
+    |
+115 | ...                   ui.close_menu();
+    |                          ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> tb_ui\src\tabs\indicator_forge.rs:123:157
+    |
+123 | ...e_graph::NodeKind::Condition("Crossover".to_string())); ui.close_menu(); }
+    |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> tb_ui\src\tabs\indicator_forge.rs:124:158
+    |
+124 | ..._graph::NodeKind::Condition("Crossunder".to_string())); ui.close_menu(); }
+    |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> tb_ui\src\tabs\indicator_forge.rs:125:160
+    |
+125 | ...graph::NodeKind::Condition("GreaterThan".to_string())); ui.close_menu(); }
+    |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> tb_ui\src\tabs\indicator_forge.rs:126:154
+    |
+126 | ...de_graph::NodeKind::Condition("LessThan".to_string())); ui.close_menu(); }
+    |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> tb_ui\src\tabs\indicator_forge.rs:130:135
+    |
+130 | ...pp.forge_node_graph, node_graph::NodeKind::OutputExpr); ui.close_menu(); }
+    |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> tb_ui\src\tabs\indicator_forge.rs:131:143
+    |
+131 | ...rge_node_graph, node_graph::NodeKind::OutputCondition); ui.close_menu(); }
+    |                                                               ^^^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Context::screen_rect`: screen_rect has been split into viewport_rect() and content_rect(). You likely should use content_rect()
+  --> tb_ui\src\app.rs:19:39
+   |
+19 |                 let screen_rect = ctx.screen_rect();
+   |                                       ^^^^^^^^^^^
+
+warning: use of deprecated associated function `eframe::egui::Frame::none`: Use `Frame::NONE` or `Frame::new()` instead.
+  --> tb_ui\src\app.rs:44:40
+   |
+44 |         let outer_frame = egui::Frame::none()
+   |                                        ^^^^
+
+warning: use of deprecated method `eframe::egui::Frame::rounding`: Renamed to `corner_radius`
+  --> tb_ui\src\app.rs:46:14
+   |
+46 |             .rounding(8.0)
+   |              ^^^^^^^^
+
+warning: use of deprecated associated function `eframe::egui::Frame::none`: Use `Frame::NONE` or `Frame::new()` instead.
+  --> tb_ui\src\app.rs:52:44
+   |
+52 |             let title_frame = egui::Frame::none()
+   |                                            ^^^^
+
+warning: use of deprecated method `eframe::egui::Frame::rounding`: Renamed to `corner_radius`
+  --> tb_ui\src\app.rs:54:18
+   |
+54 |                 .rounding(egui::CornerRadius { nw: 8, ne: 8, sw: 0, se: 0 });
+   |                  ^^^^^^^^
+
+warning: use of deprecated method `eframe::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> tb_ui\src\node_graph\painter.rs:122:20
+    |
+122 |                 ui.close_menu();
+    |                    ^^^^^^^^^^
+
+warning: unused import: `polars::prelude`
+  --> tb_ui\src\main.rs:13:5
+   |
+13 | use polars::prelude::*;
+   |     ^^^^^^^^^^^^^^^
+
+warning: unused variable: `engine`
+   --> tb_ui\src\components\modals.rs:133:30
+    |
+133 |                 if let (Some(engine), Some(idx)) = (&app.bitwise_engine, app.selected_strategy_idx) {
+    |                              ^^^^^^ help: if this is intentional, prefix it with an underscore: `_engine`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+  --> tb_ui\src\tabs\data_sandbox.rs:84:21
+   |
+84 |                 let mut opts = CsvReadOptions::default()
+   |                     ----^^^^
+   |                     |
+   |                     help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `var_name`
+  --> tb_ui\src\tabs\forge_parser.rs:83:31
+   |
+83 |         Pill::Indicator(name, var_name) => {
+   |                               ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_var_name`
+
+warning: unused variable: `in_pos`
+  --> tb_ui\src\node_graph\painter.rs:90:13
+   |
+90 |         let in_pos = get_pin_pos(screen_pos, 0, false, state.zoom);
+   |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_in_pos`
+
+warning: unused variable: `id`
+   --> tb_ui\src\node_graph\painter.rs:279:17
+    |
+279 |     if let Some(id) = state.dragging_node {
+    |                 ^^ help: if this is intentional, prefix it with an underscore: `_id`
+
+warning: unused variable: `var_name`
+  --> tb_ui\src\node_graph\compiler.rs:66:17
+   |
+66 |             let var_name = format!("Node{}_Param", node.id);
+   |                 ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_var_name`
+
+warning: value assigned to `kind` is never read
+  --> tb_ui\src\node_graph\decompiler.rs:38:20
+   |
+38 |     let mut kind = NodeKind::Constant(0.0);
+   |                    ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: maybe it is overwritten before being read?
+   = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+For more information about this error, try `rustc --explain E0433`.
+warning: `tb_ui` (bin "tb_ui") generated 68 warnings
+error: could not compile `tb_ui` (bin "tb_ui") due to 1 previous error; 68 warnings emitted
